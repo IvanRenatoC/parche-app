@@ -1,0 +1,88 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper: usuario autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper: uid del usuario
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // Helper: tamaño máximo de archivo (MB)
+    function maxSizeMB(mb) {
+      return request.resource.size <= mb * 1024 * 1024;
+    }
+
+    // Helper: tipo de contenido imagen
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    // Helper: tipo PDF o imagen
+    function isImageOrPdf() {
+      return request.resource.contentType.matches('image/.*')
+          || request.resource.contentType == 'application/pdf';
+    }
+
+    // ───────────────────────────────────────────────
+    // Fotos de perfil — /profile_photos/{uid}/
+    // ───────────────────────────────────────────────
+    match /profile_photos/{userId}/{allPaths=**} {
+      allow read: if isAuthenticated() && uid() == userId;
+      allow write: if isAuthenticated()
+                   && uid() == userId
+                   && isImage()
+                   && maxSizeMB(5);
+    }
+
+    // ───────────────────────────────────────────────
+    // Documentos de identidad — /identity_documents/{uid}/
+    // ───────────────────────────────────────────────
+    match /identity_documents/{userId}/{allPaths=**} {
+      allow read: if isAuthenticated() && uid() == userId;
+      allow write: if isAuthenticated()
+                   && uid() == userId
+                   && isImageOrPdf()
+                   && maxSizeMB(10);
+    }
+
+    // ───────────────────────────────────────────────
+    // Certificados — /certificates/{uid}/
+    // ───────────────────────────────────────────────
+    match /certificates/{userId}/{allPaths=**} {
+      allow read: if isAuthenticated() && uid() == userId;
+      allow write: if isAuthenticated()
+                   && uid() == userId
+                   && isImageOrPdf()
+                   && maxSizeMB(10);
+    }
+
+    // ───────────────────────────────────────────────
+    // Documentos del negocio — /business_documents/{ownerUid}/
+    // ───────────────────────────────────────────────
+    match /business_documents/{ownerUid}/{allPaths=**} {
+      allow read: if isAuthenticated() && uid() == ownerUid;
+      allow write: if isAuthenticated()
+                   && uid() == ownerUid
+                   && isImageOrPdf()
+                   && maxSizeMB(10);
+    }
+
+    // ───────────────────────────────────────────────
+    // Adjuntos de publicaciones — /job_post_attachments/{jobPostId}/
+    // ───────────────────────────────────────────────
+    match /job_post_attachments/{jobPostId}/{allPaths=**} {
+      // Cualquier usuario autenticado puede leer adjuntos de publicaciones
+      allow read: if isAuthenticated();
+      // Solo usuarios autenticados pueden subir (backend valida ownership)
+      allow write: if isAuthenticated()
+                   && isImageOrPdf()
+                   && maxSizeMB(20);
+    }
+  }
+}
