@@ -1,0 +1,89 @@
+:root {
+  --text-primary: #ad4b7e;
+  --text-secondary: #ad4b7e;
+  --primary: #000000;
+  --bg-base: #ffffff;
+  --bg-surface: #f2f3f5;
+  --accent: #22c55e;
+  --warning: #f59e0b;
+  --border: transparent;
+  --gray-blue: #a7b0c0;
+  --gray-blue-dark: #97a0b0;
+  --error: #ef4444;
+
+  --sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.5;
+  color: #1a1a1a;
+  background: var(--bg-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--bg-base);
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+input, textarea, select {
+  font-family: inherit;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.3;
+}
+
+p {
+  margin: 0;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gray-blue);
+  border-radius: 3px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeIn 0.2s ease-out; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner { animation: spin 0.7s linear infinite; }
