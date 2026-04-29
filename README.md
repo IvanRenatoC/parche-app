@@ -1,9 +1,11 @@
 # Parche
 
-Plataforma web que conecta dueños de restaurantes, bares, discotecas, tiendas y convenience stores con workers disponibles para cubrir **turnos temporales**.
+Plataforma web que conecta locales (restaurantes, bares, discotecas, tiendas, convenience stores) con personas que buscan **turnos temporales**.
 
-- **Owner**: publica necesidades de personal, revisa postulantes y acepta workers.
-- **Worker**: busca turnos, filtra por región/ocupación y postula.
+- **Negocio**: publica turnos, revisa postulantes y acepta a quien quiere contratar.
+- **Trabajador**: busca turnos, filtra por región/comuna/oficio y postula.
+
+> Nota: en el código interno los roles se llaman `owner` y `worker`. En la UI siempre verás **Negocio** y **Trabajador**.
 
 ---
 
@@ -234,12 +236,17 @@ uvicorn app.main:app --reload --port 8000
 
 ## Flujo de prueba recomendado
 
-1. Abrir **http://localhost:5173** — debe cargar sin pantalla blanca
-2. Ir a `/login` — debe mostrar formulario
-3. Ir a `/register` — debe mostrar formulario de registro
-4. Registrar un usuario nuevo (requiere Firebase Auth habilitado)
-5. Verificar **http://localhost:8000/health** → `{"status":"ok",...}`
-6. Explorar **http://localhost:8000/docs** → Swagger interactivo con todos los endpoints
+1. Abrir **http://localhost:5173** — debe cargar sin pantalla blanca.
+2. Click en **"Crear cuenta"** y registrarse con email/password.
+3. La app redirige automáticamente a **/onboarding** para elegir tipo de cuenta.
+4. Elegir **Negocio** o **Trabajador** y completar los datos mínimos.
+5. Al guardar, entras al marketplace según tu rol. **F5 mantiene la sesión.**
+6. Si eres Negocio: click en **"Publicar turno"** y crea una publicación.
+7. Cierra sesión y registra otra cuenta como Trabajador.
+8. Postula al turno desde el marketplace de Trabajador.
+9. Vuelve como Negocio y acepta al postulante. El sistema notifica automáticamente a los demás.
+
+Datos sugeridos para probar este flujo: ver [docs/LOCAL_RUNBOOK.md §9.1](docs/LOCAL_RUNBOOK.md#91-datos-sugeridos-para-probar).
 
 ---
 

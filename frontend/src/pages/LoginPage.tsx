@@ -32,14 +32,9 @@ export function LoginPage() {
     setError('');
     try {
       await signIn(data.email, data.password);
-      navigate('/marketplace');
+      navigate('/', { replace: true });
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Error al iniciar sesión';
-      if (msg.includes('invalid-credential') || msg.includes('wrong-password') || msg.includes('user-not-found')) {
-        setError('Email o contraseña incorrectos');
-      } else {
-        setError(msg);
-      }
+      setError(e instanceof Error ? e.message : 'Error al iniciar sesión');
     }
   }
 
@@ -48,7 +43,7 @@ export function LoginPage() {
     setGoogleLoading(true);
     try {
       await signInWithGoogle();
-      navigate('/marketplace');
+      navigate('/', { replace: true });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error con Google');
     } finally {
@@ -61,14 +56,14 @@ export function LoginPage() {
       <Card style={{ width: '100%', maxWidth: '420px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '8px' }}>
           <div>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#111' }}>Iniciar sesión</h2>
-            <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>Bienvenido de vuelta</p>
+            <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#1F1F1F' }}>Hola de nuevo</h2>
+            <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>
+              Inicia sesión para entrar a Parche
+            </p>
           </div>
 
           {error && (
-            <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fee2e2', color: '#991b1b', fontSize: '14px' }}>
-              {error}
-            </div>
+            <div style={errorBoxStyle}>{error}</div>
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -77,6 +72,7 @@ export function LoginPage() {
               label="Email"
               type="email"
               placeholder="tu@email.com"
+              autoComplete="email"
               error={errors.email}
               {...register('email')}
             />
@@ -85,6 +81,7 @@ export function LoginPage() {
               label="Contraseña"
               type="password"
               placeholder="••••••••"
+              autoComplete="current-password"
               error={errors.password}
               {...register('password')}
             />
@@ -95,15 +92,15 @@ export function LoginPage() {
               </Link>
             </div>
 
-            <Button type="submit" loading={isSubmitting} fullWidth>
+            <Button type="submit" loading={isSubmitting} fullWidth size="lg">
               Iniciar sesión
             </Button>
           </form>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
-            <span style={{ fontSize: '12px', color: '#9ca3af' }}>o continuar con</span>
-            <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
+            <div style={{ flex: 1, height: '1px', background: '#E5E7EB' }} />
+            <span style={{ fontSize: '12px', color: '#9CA3AF' }}>o continuar con</span>
+            <div style={{ flex: 1, height: '1px', background: '#E5E7EB' }} />
           </div>
 
           <Button
@@ -117,7 +114,7 @@ export function LoginPage() {
             &nbsp;Google
           </Button>
 
-          <p style={{ textAlign: 'center', fontSize: '14px', color: '#6b7280' }}>
+          <p style={{ textAlign: 'center', fontSize: '14px', color: '#6B7280' }}>
             ¿No tienes cuenta?{' '}
             <Link to="/register" style={{ color: '#ad4b7e', fontWeight: 600 }}>
               Regístrate
@@ -128,6 +125,14 @@ export function LoginPage() {
     </AuthLayout>
   );
 }
+
+const errorBoxStyle: React.CSSProperties = {
+  padding: '10px 14px',
+  borderRadius: '8px',
+  background: '#fee2e2',
+  color: '#991b1b',
+  fontSize: '14px',
+};
 
 function GoogleIcon() {
   return (

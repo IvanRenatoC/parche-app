@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
@@ -15,94 +16,110 @@ import {
   signOut,
   sendPasswordResetEmail,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
-import type { User, UserRole } from '../types';
+import type { User } from '../types';
 
 interface AuthContextValue {
   firebaseUser: FirebaseUser | null;
   appUser: User | null;
   loading: boolean;
+  bootstrapped: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
-  signUp: (email: string, password: string, role: UserRole) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
   logOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  refreshAppUser: () => Promise<void>;
+  refreshAppUser: () => Promise<User | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function friendlyAuthError(message: string): string {
+  if (message.includes('invalid-credential') || message.includes('wrong-password') || message.includes('user-not-found')) {
+    return 'Email o contraseña incorrectos';
+  }
+  if (message.includes('email-already-in-use')) {
+    return 'Ya existe una cuenta con este email';
+  }
+  if (message.includes('weak-password')) {
+    return 'La contraseña debe tener al menos 6 caracteres';
+  }
+  if (message.includes('invalid-email')) {
+    return 'Email inválido';
+  }
+  if (message.includes('popup-closed-by-user')) {
+    return 'Cancelaste el inicio de sesión con Google';
+  }
+  if (message.includes('network-request-failed')) {
+    return 'Sin conexión. Revisa tu internet.';
+  }
+  return message;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [appUser, setAppUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [bootstrapped, setBootstrapped] = useState(false);
 
-  async function loadAppUser(fbUser: FirebaseUser) {
+  const loadAppUser = useCallback(async (fbUser: FirebaseUser): Promise<User | null> => {
     const ref = doc(db, 'users', fbUser.uid);
     const snap = await getDoc(ref);
     if (snap.exists()) {
-      setAppUser(snap.data() as User);
-    } else {
-      setAppUser(null);
+      const data = snap.data() as User;
+      setAppUser(data);
+      return data;
     }
-  }
+    setAppUser(null);
+    return null;
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
       if (fbUser) {
-        await loadAppUser(fbUser);
+        try {
+          await loadAppUser(fbUser);
+        } catch (err) {
+          console.error('No se pudo cargar el perfil:', err);
+          setAppUser(null);
+        }
       } else {
         setAppUser(null);
       }
       setLoading(false);
+      setBootstrapped(true);
     });
     return unsubscribe;
-  }, []);
+  }, [loadAppUser]);
 
   async function signIn(email: string, password: string) {
-    await signInWithEmailAndPassword(auth, email, password);
-  }
-
-  async function signInWithGoogle() {
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    const fbUser = result.user;
-    const ref = doc(db, 'users', fbUser.uid);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      // New Google user — needs to complete profile
-      await setDoc(ref, {
-        uid: fbUser.uid,
-        email: fbUser.email,
-        role: null,
-        rut: '',
-        first_name: fbUser.displayName?.split(' ')[0] ?? '',
-        last_name: fbUser.displayName?.split(' ').slice(1).join(' ') ?? '',
-        profile_completed: false,
-        email_verified: fbUser.emailVerified,
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp(),
-      });
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Error al iniciar sesión';
+      throw new Error(friendlyAuthError(msg));
     }
   }
 
-  async function signUp(email: string, password: string, role: UserRole) {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    const ref = doc(db, 'users', cred.user.uid);
-    await setDoc(ref, {
-      uid: cred.user.uid,
-      email,
-      role,
-      rut: '',
-      first_name: '',
-      last_name: '',
-      profile_completed: false,
-      email_verified: false,
-      created_at: serverTimestamp(),
-      updated_at: serverTimestamp(),
-    });
+  async function signInWithGoogle() {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Error con Google';
+      throw new Error(friendlyAuthError(msg));
+    }
+  }
+
+  async function signUp(email: string, password: string) {
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Error en el registro';
+      throw new Error(friendlyAuthError(msg));
+    }
   }
 
   async function logOut() {
@@ -111,12 +128,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function resetPassword(email: string) {
-    await sendPasswordResetEmail(auth, email);
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Error al enviar correo';
+      throw new Error(friendlyAuthError(msg));
+    }
   }
 
-  async function refreshAppUser() {
-    if (firebaseUser) await loadAppUser(firebaseUser);
-  }
+  const refreshAppUser = useCallback(async (): Promise<User | null> => {
+    if (!firebaseUser) return null;
+    return await loadAppUser(firebaseUser);
+  }, [firebaseUser, loadAppUser]);
 
   return (
     <AuthContext.Provider
@@ -124,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         firebaseUser,
         appUser,
         loading,
+        bootstrapped,
         signIn,
         signInWithGoogle,
         signUp,
