@@ -1,13 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Layout } from '../components/layout/Layout';
 import { Card, Badge, Spinner } from '../components/ui/Card';
-import { getOwnerJobPosts, getWorkerApplications } from '../services/jobPosts';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { Button } from '../components/ui/Button';
+import { Input, Select } from '../components/ui/Input';
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import type { JobPost, Application, Business } from '../types';
-import { APPLICATION_STATUS_LABEL, JOB_POST_STATUS_LABEL } from '../types';
-import { User, Briefcase, DollarSign, Star, MapPin, Calendar } from 'lucide-react';
+import type { Application, Business, JobPost, Worker } from '../types';
+import { APPLICATION_STATUS_LABEL, BUSINESS_TYPES, type BusinessType, JOB_POST_STATUS_LABEL } from '../types';
+import { Briefcase, DollarSign, MapPin, User as UserIcon, Edit3, Save, X, Calendar } from 'lucide-react';
+import { CHILE_LOCATIONS, getCommunesForRegion } from '../lib/chileLocations';
+import { getOwnerJobPosts, getWorkerApplications } from '../services/jobPosts';
 
 export function ProfilePage() {
   const { appUser } = useAuth();
@@ -15,149 +18,207 @@ export function ProfilePage() {
 
   return (
     <Layout>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '800px', margin: '0 auto' }}>
-        {/* Personal info card */}
-        <Card>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div
-              style={{
-                width: '64px', height: '64px', borderRadius: '50%',
-                background: '#ad4b7e', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', color: '#fff', fontSize: '24px', fontWeight: 700,
-              }}
-            >
-              {appUser?.first_name?.[0] ?? appUser?.email?.[0]?.toUpperCase() ?? '?'}
-            </div>
-            <div>
-              <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#111', margin: 0 }}>
-                {appUser?.first_name || appUser?.last_name
-                  ? `${appUser.first_name} ${appUser.last_name}`
-                  : 'Sin nombre'}
-              </h2>
-              <p style={{ fontSize: '14px', color: '#6b7280', margin: '2px 0 0' }}>{appUser?.email}</p>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                <Badge color="pink">{isOwner ? 'Owner' : 'Worker'}</Badge>
-                {appUser?.profile_completed && <Badge color="green">Perfil completo</Badge>}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <InfoField label="RUT" value={appUser?.rut || '—'} />
-            <InfoField label="Email verificado" value={appUser?.email_verified ? 'Sí' : 'Pendiente'} />
-          </div>
-        </Card>
-
-        {isOwner ? <OwnerProfile /> : <WorkerProfile />}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '880px', margin: '0 auto' }}>
+        <PersonalCard />
+        {isOwner ? <OwnerSection /> : <WorkerSection />}
       </div>
     </Layout>
   );
 }
 
-function OwnerProfile() {
-  const { appUser } = useAuth();
-  const [posts, setPosts] = useState<JobPost[]>([]);
-  const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [loading, setLoading] = useState(true);
+function PersonalCard() {
+  const { appUser, refreshAppUser } = useAuth();
+  const [editing, setEditing] = useState(false);
+  const [first_name, setFirstName] = useState(appUser?.first_name ?? '');
+  const [last_name, setLastName] = useState(appUser?.last_name ?? '');
+  const [rut, setRut] = useState(appUser?.rut ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!appUser) return;
-    Promise.all([
-      getOwnerJobPosts(appUser.uid),
-      getDocs(query(collection(db, 'businesses'), where('owner_uid', '==', appUser.uid))),
-    ]).then(([postsData, bizSnap]) => {
-      setPosts(postsData);
-      setBusinesses(bizSnap.docs.map(d => ({ id: d.id, ...d.data() } as Business)));
-      setLoading(false);
-    });
+    setFirstName(appUser?.first_name ?? '');
+    setLastName(appUser?.last_name ?? '');
+    setRut(appUser?.rut ?? '');
   }, [appUser]);
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '40px' }}><Spinner /></div>;
+  if (!appUser) return null;
+  const roleLabel = appUser.role === 'owner' ? 'Negocio' : 'Trabajador';
 
-  const totalSpent = posts
-    .filter(p => ['filled', 'closed'].includes(p.status))
-    .reduce((sum, p) => sum + (p.salary_total_clp ?? 0), 0);
-
-  const totalAccepted = posts.reduce((sum, p) => sum + p.accepted_workers_count, 0);
-
-  const occupationStats: Record<string, number> = {};
-  for (const p of posts) {
-    occupationStats[p.occupation] = (occupationStats[p.occupation] ?? 0) + 1;
+  async function handleSave() {
+    if (!appUser) return;
+    setSaving(true);
+    setError('');
+    try {
+      await updateDoc(doc(db, 'users', appUser.uid), {
+        first_name,
+        last_name,
+        rut,
+        updated_at: serverTimestamp(),
+      });
+      await refreshAppUser();
+      setEditing(false);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
-    <>
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
-        <StatCard icon={<Briefcase size={20} color="#ad4b7e" />} label="Publicaciones" value={String(posts.length)} />
-        <StatCard icon={<User size={20} color="#22c55e" />} label="Workers aceptados" value={String(totalAccepted)} />
-        <StatCard icon={<DollarSign size={20} color="#f59e0b" />} label="Total invertido" value={`$${totalSpent.toLocaleString('es-CL')}`} />
+    <Card>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div
+            style={{
+              width: '64px', height: '64px', borderRadius: '50%',
+              background: '#ad4b7e', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', color: '#FFFFFF', fontSize: '24px', fontWeight: 700,
+            }}
+          >
+            {appUser.first_name?.[0]?.toUpperCase() ?? appUser.email[0]?.toUpperCase()}
+          </div>
+          <div>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>
+              {appUser.first_name || appUser.last_name
+                ? `${appUser.first_name} ${appUser.last_name}`
+                : 'Sin nombre'}
+            </h2>
+            <p style={{ fontSize: '14px', color: '#6B7280', margin: '2px 0 0' }}>{appUser.email}</p>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <Badge color="pink">{roleLabel}</Badge>
+              {appUser.profile_completed && <Badge color="green">Datos básicos completos</Badge>}
+            </div>
+          </div>
+        </div>
+        {!editing ? (
+          <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+            <Edit3 size={14} style={{ marginRight: '6px' }} /> Editar
+          </Button>
+        ) : (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button variant="secondary" size="sm" onClick={() => { setEditing(false); setError(''); }}>
+              <X size={14} style={{ marginRight: '6px' }} /> Cancelar
+            </Button>
+            <Button size="sm" loading={saving} onClick={handleSave}>
+              <Save size={14} style={{ marginRight: '6px' }} /> Guardar
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Businesses */}
-      {businesses.length > 0 && (
-        <Card>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111', marginBottom: '14px' }}>
-            Locales administrados
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {businesses.map(biz => (
-              <div key={biz.id} style={{ display: 'flex', gap: '12px', padding: '12px', borderRadius: '8px', background: '#f9fafb', border: '1px solid #f0f0f0' }}>
-                <div>
-                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#111', margin: 0 }}>{biz.business_name}</p>
-                  <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>
-                    RUT: {biz.business_rut} · {biz.business_type} · {biz.business_subtype}
-                  </p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', color: '#9ca3af', fontSize: '12px' }}>
-                    <MapPin size={11} /> {biz.commune}, {biz.region}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
+      {error && (
+        <div style={{ marginTop: '14px', padding: '10px 14px', borderRadius: '8px', background: '#fee2e2', color: '#991b1b', fontSize: '14px' }}>
+          {error}
+        </div>
       )}
 
-      {/* Stats by occupation */}
-      {Object.keys(occupationStats).length > 0 && (
-        <Card>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111', marginBottom: '14px' }}>
-            Publicaciones por oficio
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {Object.entries(occupationStats).map(([occupation, count]) => (
-              <div key={occupation} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: '8px', background: '#f9fafb' }}>
-                <span style={{ fontSize: '14px', color: '#374151' }}>{occupation}</span>
-                <Badge color="pink">{count}</Badge>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
+      <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+        {editing ? (
+          <>
+            <Input label="Nombre" value={first_name} onChange={(e) => setFirstName(e.target.value)} />
+            <Input label="Apellido" value={last_name} onChange={(e) => setLastName(e.target.value)} />
+            <Input label="RUT persona" value={rut} onChange={(e) => setRut(e.target.value)} placeholder="12.345.678-9" />
+          </>
+        ) : (
+          <>
+            <InfoField label="Nombre" value={appUser.first_name || '—'} />
+            <InfoField label="Apellido" value={appUser.last_name || '—'} />
+            <InfoField label="RUT persona" value={appUser.rut || '—'} />
+            <InfoField label="Email verificado" value={appUser.email_verified ? 'Sí' : 'Pendiente'} />
+          </>
+        )}
+      </div>
+    </Card>
+  );
+}
 
-      {/* Publication history */}
+function OwnerSection() {
+  const { appUser } = useAuth();
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [posts, setPosts] = useState<JobPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    if (!appUser) return;
+    setLoading(true);
+    const [bizSnap, postsData] = await Promise.all([
+      getDocs(query(collection(db, 'businesses'), where('owner_uid', '==', appUser.uid))),
+      getOwnerJobPosts(appUser.uid),
+    ]);
+    setBusinesses(bizSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Business)));
+    setPosts(postsData);
+    setLoading(false);
+  }, [appUser]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  if (loading) {
+    return (
       <Card>
-        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111', marginBottom: '14px' }}>
-          Historial de publicaciones
-        </h3>
+        <div style={{ textAlign: 'center', padding: '24px' }}><Spinner /></div>
+      </Card>
+    );
+  }
+
+  const totalSpent = posts
+    .filter((p) => ['filled', 'closed'].includes(p.status))
+    .reduce((sum, p) => sum + (p.salary_total_clp ?? 0), 0);
+  const totalAccepted = posts.reduce((sum, p) => sum + (p.accepted_workers_count ?? 0), 0);
+
+  return (
+    <>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+        <StatCard icon={<Briefcase size={20} color="#ad4b7e" />} label="Publicaciones" value={String(posts.length)} />
+        <StatCard icon={<UserIcon size={20} color="#22C55E" />} label="Trabajadores aceptados" value={String(totalAccepted)} />
+        <StatCard icon={<DollarSign size={20} color="#F59E0B" />} label="Total invertido" value={`$${totalSpent.toLocaleString('es-CL')}`} />
+      </div>
+
+      <Card>
+        <SectionHeader
+          title="Mis locales"
+          subtitle="Tus locales registrados. Puedes editar sus datos básicos."
+        />
+        {businesses.length === 0 ? (
+          <p style={{ fontSize: '14px', color: '#9CA3AF', padding: '12px 0' }}>
+            No tienes locales registrados. Crea uno desde el flujo de publicación.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {businesses.map((biz) => (
+              <BusinessRow
+                key={biz.id}
+                business={biz}
+                isEditing={editingId === biz.id}
+                onEdit={() => setEditingId(biz.id)}
+                onCancel={() => setEditingId(null)}
+                onSaved={async () => { setEditingId(null); await reload(); }}
+              />
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <SectionHeader title="Historial de publicaciones" subtitle={`${posts.length} publicaciones creadas`} />
         {posts.length === 0 ? (
-          <p style={{ fontSize: '14px', color: '#9ca3af', textAlign: 'center', padding: '24px' }}>
-            No hay publicaciones aún
+          <p style={{ fontSize: '14px', color: '#9CA3AF', padding: '12px 0' }}>
+            Aún no creaste publicaciones.
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {posts.map(post => (
-              <div key={post.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: '8px', background: '#f9fafb', border: '1px solid #f0f0f0' }}>
+            {posts.map((post) => (
+              <div key={post.id} style={historyRow}>
                 <div>
-                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#111', margin: 0 }}>{post.title}</p>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#1F1F1F', margin: 0 }}>{post.title}</p>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '2px' }}>
-                    <span style={{ fontSize: '12px', color: '#9ca3af' }}>{post.start_date}</span>
-                    <span style={{ fontSize: '12px', color: '#9ca3af' }}>·</span>
+                    <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{post.start_date}</span>
+                    <span style={{ fontSize: '12px', color: '#9CA3AF' }}>·</span>
                     <span style={{ fontSize: '12px', color: '#ad4b7e' }}>{post.occupation}</span>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '12px', color: '#6b7280' }}>{post.accepted_workers_count}/{post.required_workers}</span>
+                  <span style={{ fontSize: '12px', color: '#6B7280' }}>{post.accepted_workers_count}/{post.required_workers}</span>
                   <Badge color={statusColors[post.status] ?? 'gray'}>
                     {JOB_POST_STATUS_LABEL[post.status]}
                   </Badge>
@@ -167,52 +228,283 @@ function OwnerProfile() {
           </div>
         )}
       </Card>
+
+      <PendingCard
+        items={[
+          'Foto de carnet o pasaporte de la persona',
+          'Foto del local',
+          'Documentos del local',
+          'Dirección con Google Maps',
+          'Calificaciones recibidas',
+        ]}
+      />
     </>
   );
 }
 
-function WorkerProfile() {
-  const { appUser } = useAuth();
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
+function BusinessRow({
+  business,
+  isEditing,
+  onEdit,
+  onCancel,
+  onSaved,
+}: {
+  business: Business;
+  isEditing: boolean;
+  onEdit: () => void;
+  onCancel: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [name, setName] = useState(business.business_name);
+  const [rut, setRut] = useState(business.business_rut);
+  const [type, setType] = useState<string>(business.business_type);
+  const [region, setRegion] = useState(business.region);
+  const [commune, setCommune] = useState(business.commune);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
+    if (isEditing) {
+      setName(business.business_name);
+      setRut(business.business_rut);
+      setType(business.business_type);
+      setRegion(business.region);
+      setCommune(business.commune);
+      setError('');
+    }
+  }, [isEditing, business]);
+
+  const regionOptions = CHILE_LOCATIONS.map((r) => ({ value: r.name, label: r.name }));
+  const communeOptions = getCommunesForRegion(region).map((c) => ({ value: c, label: c }));
+  const typeOptions = Object.entries(BUSINESS_TYPES).map(([v, l]) => ({ value: v, label: l }));
+
+  async function save() {
+    setSaving(true);
+    setError('');
+    try {
+      await updateDoc(doc(db, 'businesses', business.id), {
+        business_name: name,
+        business_rut: rut,
+        business_type: type as BusinessType,
+        region,
+        commune,
+        updated_at: serverTimestamp(),
+      });
+      await onSaved();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!isEditing) {
+    return (
+      <div style={businessRowStyle}>
+        <div>
+          <p style={{ fontSize: '15px', fontWeight: 600, color: '#1F1F1F', margin: 0 }}>{business.business_name}</p>
+          <p style={{ fontSize: '12px', color: '#6B7280', margin: '4px 0 0' }}>
+            RUT {business.business_rut} · {BUSINESS_TYPES[business.business_type] ?? business.business_type}
+          </p>
+          {(business.region || business.commune) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', color: '#9CA3AF', fontSize: '12px' }}>
+              <MapPin size={11} /> {business.commune || '—'}, {business.region || '—'}
+            </div>
+          )}
+        </div>
+        <Button size="sm" variant="secondary" onClick={onEdit}>
+          <Edit3 size={13} style={{ marginRight: '6px' }} /> Editar
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ ...businessRowStyle, flexDirection: 'column', alignItems: 'stretch', gap: '12px' }}>
+      {error && (
+        <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fee2e2', color: '#991b1b', fontSize: '13px' }}>
+          {error}
+        </div>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+        <Input label="Nombre del local" value={name} onChange={(e) => setName(e.target.value)} />
+        <Input label="RUT del local" value={rut} onChange={(e) => setRut(e.target.value)} />
+        <Select label="Tipo de local" options={typeOptions} value={type} onChange={(e) => setType(e.target.value)} />
+        <Select
+          label="Región"
+          options={regionOptions}
+          placeholder="Seleccionar"
+          value={region}
+          onChange={(e) => { setRegion(e.target.value); setCommune(''); }}
+        />
+        <Select
+          label="Comuna"
+          options={communeOptions}
+          placeholder={region ? 'Seleccionar' : 'Elige primero una región'}
+          disabled={!region}
+          value={commune}
+          onChange={(e) => setCommune(e.target.value)}
+        />
+      </div>
+      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+        <Button variant="secondary" size="sm" onClick={onCancel}>Cancelar</Button>
+        <Button size="sm" loading={saving} onClick={save}>Guardar</Button>
+      </div>
+    </div>
+  );
+}
+
+function WorkerSection() {
+  const { appUser } = useAuth();
+  const [worker, setWorker] = useState<Worker | null>(null);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+
+  // Editable fields
+  const [nationality, setNationality] = useState('');
+  const [occupation, setOccupation] = useState('');
+  const [years, setYears] = useState('0');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const reload = useCallback(async () => {
     if (!appUser) return;
-    getWorkerApplications(appUser.uid).then(apps => {
-      setApplications(apps);
-      setLoading(false);
-    });
+    setLoading(true);
+    const [workerSnap, apps] = await Promise.all([
+      getDoc(doc(db, 'workers', appUser.uid)),
+      getWorkerApplications(appUser.uid),
+    ]);
+    if (workerSnap.exists()) {
+      const w = workerSnap.data() as Worker;
+      setWorker(w);
+      setNationality(w.nationality ?? '');
+      const first = w.occupations?.[0];
+      setOccupation(first?.name ?? '');
+      setYears(String(first?.years_experience ?? 0));
+    } else {
+      setWorker(null);
+    }
+    setApplications(apps);
+    setLoading(false);
   }, [appUser]);
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '40px' }}><Spinner /></div>;
+  useEffect(() => { reload(); }, [reload]);
 
-  const accepted = applications.filter(a => a.status === 'accepted');
-  const rejected = applications.filter(a => ['rejected', 'not_selected'].includes(a.status));
+  if (loading) {
+    return (
+      <Card>
+        <div style={{ textAlign: 'center', padding: '24px' }}><Spinner /></div>
+      </Card>
+    );
+  }
+
+  const accepted = applications.filter((a) => a.status === 'accepted');
+  const rejected = applications.filter((a) => ['rejected', 'not_selected'].includes(a.status));
+
+  async function save() {
+    if (!appUser) return;
+    setSaving(true);
+    setError('');
+    try {
+      const occupations = occupation
+        ? [{ name: occupation, years_experience: Number(years) || 0 }]
+        : [];
+      await setDoc(
+        doc(db, 'workers', appUser.uid),
+        {
+          uid: appUser.uid,
+          rut: appUser.rut,
+          nationality,
+          occupations,
+          updated_at: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      await reload();
+      setEditing(false);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
         <StatCard icon={<Briefcase size={20} color="#ad4b7e" />} label="Postulaciones" value={String(applications.length)} />
-        <StatCard icon={<User size={20} color="#22c55e" />} label="Aceptadas" value={String(accepted.length)} />
-        <StatCard icon={<Star size={20} color="#f59e0b" />} label="Rechazadas" value={String(rejected.length)} />
+        <StatCard icon={<UserIcon size={20} color="#22C55E" />} label="Aceptadas" value={String(accepted.length)} />
+        <StatCard icon={<UserIcon size={20} color="#F59E0B" />} label="No seleccionadas" value={String(rejected.length)} />
       </div>
 
       <Card>
-        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111', marginBottom: '14px' }}>
-          Historial de postulaciones
-        </h3>
+        <SectionHeader
+          title="Mi trabajo"
+          subtitle="Estos datos ayudan a que los Negocios te encuentren más rápido."
+          right={
+            !editing ? (
+              <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+                <Edit3 size={13} style={{ marginRight: '6px' }} /> Editar
+              </Button>
+            ) : (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button variant="secondary" size="sm" onClick={() => { setEditing(false); setError(''); }}>Cancelar</Button>
+                <Button size="sm" loading={saving} onClick={save}>Guardar</Button>
+              </div>
+            )
+          }
+        />
+        {error && (
+          <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: '8px', background: '#fee2e2', color: '#991b1b', fontSize: '14px' }}>
+            {error}
+          </div>
+        )}
+        <div style={{ marginTop: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+          {editing ? (
+            <>
+              <Input label="Nacionalidad" value={nationality} onChange={(e) => setNationality(e.target.value)} placeholder="Chilena" />
+              <Input label="Oficio principal" value={occupation} onChange={(e) => setOccupation(e.target.value)} placeholder="Barman" />
+              <Input label="Años de experiencia" type="number" min="0" value={years} onChange={(e) => setYears(e.target.value)} />
+            </>
+          ) : (
+            <>
+              <InfoField label="Nacionalidad" value={worker?.nationality || '—'} />
+              <InfoField
+                label="Oficio principal"
+                value={worker?.occupations?.[0]?.name || '—'}
+              />
+              <InfoField
+                label="Años de experiencia"
+                value={
+                  worker?.occupations?.[0]?.years_experience !== undefined
+                    ? `${worker.occupations[0].years_experience} años`
+                    : '—'
+                }
+              />
+              <InfoField label="Estado" value={worker?.status === 'active' ? 'Activo' : 'Suspendido'} />
+            </>
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <SectionHeader title="Historial de postulaciones" subtitle={`${applications.length} postulaciones`} />
         {applications.length === 0 ? (
-          <p style={{ fontSize: '14px', color: '#9ca3af', textAlign: 'center', padding: '24px' }}>
-            No has postulado aún
+          <p style={{ fontSize: '14px', color: '#9CA3AF', padding: '12px 0' }}>
+            Aún no postulaste a ningún turno.
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {applications.map(app => (
-              <div key={app.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: '8px', background: '#f9fafb', border: '1px solid #f0f0f0' }}>
+            {applications.map((app) => (
+              <div key={app.id} style={historyRow}>
                 <div>
-                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#111', margin: 0 }}>Publicación {app.job_post_id.slice(0, 12)}...</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', color: '#9ca3af', fontSize: '12px' }}>
-                    <Calendar size={11} /> {new Date(app.created_at).toLocaleDateString('es-CL')}
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#1F1F1F', margin: 0 }}>
+                    Publicación {app.job_post_id.slice(0, 10)}…
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', color: '#9CA3AF', fontSize: '12px' }}>
+                    <Calendar size={11} />
+                    {app.created_at ? new Date(app.created_at).toLocaleDateString('es-CL') : '—'}
                   </div>
                 </div>
                 <Badge color={appColors[app.status] ?? 'gray'}>
@@ -223,7 +515,33 @@ function WorkerProfile() {
           </div>
         )}
       </Card>
+
+      <PendingCard
+        items={[
+          'Foto de carnet o pasaporte',
+          'Foto de perfil (cuello hacia arriba)',
+          'Certificados de cursos',
+          'Calificaciones recibidas',
+          'Más oficios y experiencia detallada',
+        ]}
+      />
     </>
+  );
+}
+
+function PendingCard({ items }: { items: string[] }) {
+  return (
+    <Card style={{ background: '#FEF7E6', border: '1px solid #FCE7B0' }}>
+      <SectionHeader
+        title="Pendientes para completar después"
+        subtitle="Estos campos no son obligatorios ahora, pero ayudan a tu perfil."
+      />
+      <ul style={{ marginTop: '12px', paddingLeft: '20px', color: '#92400E', fontSize: '13px', lineHeight: 1.7 }}>
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 
@@ -233,8 +551,8 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {icon}
         <div>
-          <p style={{ fontSize: '22px', fontWeight: 700, color: '#111', margin: 0 }}>{value}</p>
-          <p style={{ fontSize: '12px', color: '#9ca3af', margin: '2px 0 0' }}>{label}</p>
+          <p style={{ fontSize: '22px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>{value}</p>
+          <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '2px 0 0' }}>{label}</p>
         </div>
       </div>
     </Card>
@@ -244,11 +562,54 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 function InfoField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 2px' }}>{label}</p>
-      <p style={{ fontSize: '14px', color: '#374151', fontWeight: 500, margin: 0 }}>{value}</p>
+      <p style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 2px' }}>
+        {label}
+      </p>
+      <p style={{ fontSize: '14px', color: '#1F1F1F', fontWeight: 500, margin: 0 }}>{value}</p>
     </div>
   );
 }
+
+function SectionHeader({
+  title,
+  subtitle,
+  right,
+}: {
+  title: string;
+  subtitle?: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
+      <div>
+        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>{title}</h3>
+        {subtitle && <p style={{ fontSize: '13px', color: '#6B7280', margin: '4px 0 0' }}>{subtitle}</p>}
+      </div>
+      {right}
+    </div>
+  );
+}
+
+const businessRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: '12px',
+  padding: '14px 16px',
+  borderRadius: '12px',
+  background: '#F7F4EF',
+  border: '1px solid #ECE7DD',
+};
+
+const historyRow: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '12px 14px',
+  borderRadius: '10px',
+  background: '#F7F4EF',
+  border: '1px solid #ECE7DD',
+};
 
 const statusColors: Record<string, 'green' | 'gray' | 'amber' | 'red' | 'blue' | 'pink'> = {
   published: 'green', draft: 'gray', closed: 'gray', cancelled: 'red', filled: 'blue', expired: 'amber',

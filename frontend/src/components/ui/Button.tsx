@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { useState, type ButtonHTMLAttributes, type ReactNode, type CSSProperties } from 'react';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
@@ -11,18 +11,25 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
 }
 
-const variantStyles: Record<Variant, string> = {
-  primary: 'bg-black text-white hover:bg-gray-900 focus:ring-2 focus:ring-offset-2 focus:ring-black',
-  secondary: 'bg-[#f2f3f5] text-gray-800 hover:bg-gray-200 focus:ring-2 focus:ring-offset-2 focus:ring-gray-300',
-  outline: 'border border-black text-black hover:bg-gray-50 focus:ring-2 focus:ring-offset-2 focus:ring-black',
-  ghost: 'text-[#ad4b7e] hover:bg-pink-50 focus:ring-2 focus:ring-offset-2 focus:ring-pink-200',
-  danger: 'bg-red-500 text-white hover:bg-red-600 focus:ring-2 focus:ring-offset-2 focus:ring-red-500',
+interface VariantStyle {
+  bg: string;
+  color: string;
+  border: string;
+  hoverBg: string;
+}
+
+const variantMap: Record<Variant, VariantStyle> = {
+  primary: { bg: '#1F1F1F', color: '#FFFFFF', border: '#1F1F1F', hoverBg: '#000000' },
+  secondary: { bg: '#FFFFFF', color: '#1F1F1F', border: '#ECE7DD', hoverBg: '#F7F4EF' },
+  outline: { bg: 'transparent', color: '#1F1F1F', border: '#1F1F1F', hoverBg: '#F7F4EF' },
+  ghost: { bg: 'transparent', color: '#ad4b7e', border: 'transparent', hoverBg: '#FCE7F3' },
+  danger: { bg: '#ef4444', color: '#FFFFFF', border: '#ef4444', hoverBg: '#dc2626' },
 };
 
-const sizeStyles: Record<Size, string> = {
-  sm: 'text-sm px-3 py-1.5 rounded-md',
-  md: 'text-sm px-4 py-2.5 rounded-lg',
-  lg: 'text-base px-6 py-3 rounded-lg',
+const sizeMap: Record<Size, { padding: string; fontSize: string; radius: string }> = {
+  sm: { padding: '7px 14px', fontSize: '13px', radius: '8px' },
+  md: { padding: '10px 18px', fontSize: '14px', radius: '10px' },
+  lg: { padding: '12px 22px', fontSize: '15px', radius: '12px' },
 };
 
 export function Button({
@@ -32,33 +39,54 @@ export function Button({
   fullWidth = false,
   disabled,
   children,
-  className = '',
+  style,
   ...props
 }: ButtonProps) {
+  const [hover, setHover] = useState(false);
   const isDisabled = disabled || loading;
+  const v = variantMap[variant];
+  const s = sizeMap[size];
+
+  const merged: CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 600,
+    transition: 'all 0.15s',
+    background: hover && !isDisabled ? v.hoverBg : v.bg,
+    color: v.color,
+    border: `1.5px solid ${v.border}`,
+    padding: s.padding,
+    fontSize: s.fontSize,
+    borderRadius: s.radius,
+    cursor: isDisabled ? 'not-allowed' : 'pointer',
+    opacity: isDisabled ? 0.55 : 1,
+    width: fullWidth ? '100%' : undefined,
+    gap: '6px',
+    fontFamily: 'inherit',
+    ...style,
+  };
+
   return (
     <button
       disabled={isDisabled}
-      className={[
-        'inline-flex items-center justify-center font-medium transition-all duration-150',
-        'disabled:opacity-50 disabled:cursor-not-allowed',
-        variantStyles[variant],
-        sizeStyles[size],
-        fullWidth ? 'w-full' : '',
-        className,
-      ].join(' ')}
-      style={{ border: variant === 'outline' ? '1px solid #000' : 'none' }}
+      style={merged}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       {...props}
     >
       {loading && (
         <svg
-          className="spinner mr-2 -ml-1 w-4 h-4"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
+          className="spinner"
+          width="14"
+          height="14"
           viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          style={{ flexShrink: 0 }}
         >
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" opacity="0.25" />
+          <path d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" fill="currentColor" opacity="0.85" />
         </svg>
       )}
       {children}
