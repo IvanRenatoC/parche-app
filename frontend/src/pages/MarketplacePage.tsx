@@ -55,18 +55,18 @@ export function MarketplacePage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <h1 style={{ fontSize: '26px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>
               {isOwner ? 'Mis publicaciones' : 'Turnos disponibles'}
             </h1>
-            <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>
+            <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}>
               {isOwner
-                ? `${posts.length} publicación${posts.length !== 1 ? 'es' : ''} creada${posts.length !== 1 ? 's' : ''}`
-                : `${posts.length} oportunidad${posts.length !== 1 ? 'es' : ''} disponible${posts.length !== 1 ? 's' : ''}`}
+                ? `${posts.length} ${posts.length === 1 ? 'publicación creada' : 'publicaciones creadas'}`
+                : `${posts.length} ${posts.length === 1 ? 'oportunidad disponible' : 'oportunidades disponibles'}`}
             </p>
           </div>
           {isOwner && (
-            <Button onClick={() => setShowCreate(true)} size="md">
-              <Plus size={16} style={{ marginRight: '6px' }} />
+            <Button onClick={() => setShowCreate(true)} size="sm">
+              <Plus size={14} style={{ marginRight: '6px' }} />
               Publicar turno
             </Button>
           )}
@@ -176,15 +176,15 @@ function FilteredList({
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {filtered.map((post) => (
-        <JobPostCard key={post.id} post={post} isOwner={isOwner} onClick={() => onSelect(post)} />
+        <JobPostRow key={post.id} post={post} isOwner={isOwner} onClick={() => onSelect(post)} />
       ))}
     </div>
   );
 }
 
-function JobPostCard({ post, isOwner, onClick }: { post: JobPost; isOwner: boolean; onClick: () => void }) {
+function JobPostRow({ post, isOwner, onClick }: { post: JobPost; isOwner: boolean; onClick: () => void }) {
   const statusColors: Record<string, 'green' | 'gray' | 'amber' | 'red' | 'blue' | 'pink'> = {
     published: 'green',
     draft: 'gray',
@@ -195,61 +195,97 @@ function JobPostCard({ post, isOwner, onClick }: { post: JobPost; isOwner: boole
   };
 
   return (
-    <Card
-      style={{ cursor: 'pointer', transition: 'box-shadow 0.15s, transform 0.05s', border: '1px solid #ECE7DD' }}
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '16px',
+        padding: '12px 16px',
+        background: '#FFFFFF',
+        border: '1px solid #ECE7DD',
+        borderRadius: '12px',
+        cursor: 'pointer',
+        transition: 'box-shadow 0.15s, border-color 0.15s',
+      }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 6px 20px rgba(0,0,0,0.10)';
+        e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.08)';
+        e.currentTarget.style.borderColor = '#ad4b7e';
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)';
+        e.currentTarget.style.boxShadow = 'none';
+        e.currentTarget.style.borderColor = '#ECE7DD';
       }}
-      onClick={onClick}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1F1F1F', margin: 0, lineHeight: 1.3 }}>{post.title}</h3>
-            <p style={{ fontSize: '13px', color: '#ad4b7e', fontWeight: 600, marginTop: '4px' }}>{post.occupation}</p>
-          </div>
-          <Badge color={statusColors[post.status] ?? 'gray'}>
-            {JOB_POST_STATUS_LABEL[post.status]}
-          </Badge>
+      <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <h3
+            style={{
+              fontSize: '15px',
+              fontWeight: 700,
+              color: '#1F1F1F',
+              margin: 0,
+              lineHeight: 1.3,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {post.title}
+          </h3>
+          <Badge color={statusColors[post.status] ?? 'gray'}>{JOB_POST_STATUS_LABEL[post.status]}</Badge>
         </div>
-
-        {post.description && (
-          <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.5, margin: 0 }}>
-            {post.description.length > 90 ? post.description.slice(0, 90) + '…' : post.description}
-          </p>
-        )}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <MetaRow icon={<MapPin size={13} />}>
-            {post.commune || '—'}, {post.region || '—'}
-          </MetaRow>
-          <MetaRow icon={<Calendar size={13} />}>{post.start_date} — {post.end_date}</MetaRow>
-          <MetaRow icon={<Clock size={13} />}>{post.start_time} a {post.end_time}</MetaRow>
-          <MetaRow icon={<Users size={13} />}>
-            {post.accepted_workers_count} / {post.required_workers} trabajadores
-          </MetaRow>
-          <MetaRow icon={<DollarSign size={13} />}>
-            ${post.salary_total_clp?.toLocaleString('es-CL')} CLP
-          </MetaRow>
-        </div>
-
-        <div style={{ borderTop: '1px solid #ECE7DD', paddingTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: '12px', color: '#ad4b7e', fontWeight: 600 }}>
-            {isOwner ? 'Ver detalles y postulantes →' : 'Ver detalles y postular →'}
-          </span>
-        </div>
+        <p style={{ fontSize: '12px', color: '#ad4b7e', fontWeight: 600, marginTop: '3px' }}>
+          {post.occupation}
+        </p>
       </div>
-    </Card>
+
+      <RowMeta icon={<MapPin size={13} />}>{post.commune || '—'}</RowMeta>
+      <RowMeta icon={<Calendar size={13} />}>
+        {post.start_date}
+        {post.end_date && post.end_date !== post.start_date ? ` → ${post.end_date}` : ''}
+      </RowMeta>
+      <RowMeta icon={<Clock size={13} />}>
+        {post.start_time}–{post.end_time}
+      </RowMeta>
+      <RowMeta icon={<Users size={13} />}>
+        {post.accepted_workers_count}/{post.required_workers}
+      </RowMeta>
+      <RowMeta icon={<DollarSign size={13} />} bold>
+        ${post.salary_total_clp?.toLocaleString('es-CL')}
+      </RowMeta>
+
+      <div style={{ flexShrink: 0, fontSize: '12px', color: '#ad4b7e', fontWeight: 600, whiteSpace: 'nowrap' }}>
+        {isOwner ? 'Ver postulantes →' : 'Postular →'}
+      </div>
+    </div>
   );
 }
 
-function MetaRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+function RowMeta({
+  icon,
+  children,
+  bold = false,
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  bold?: boolean;
+}) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6B7280', fontSize: '13px' }}>
-      {icon} {children}
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        color: bold ? '#1F1F1F' : '#6B7280',
+        fontSize: '12.5px',
+        fontWeight: bold ? 600 : 500,
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {icon}
+      {children}
     </div>
   );
 }
@@ -257,19 +293,19 @@ function MetaRow({ icon, children }: { icon: React.ReactNode; children: React.Re
 function EmptyState({ isOwner, onCreateClick }: { isOwner: boolean; onCreateClick: () => void }) {
   return (
     <Card>
-      <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-        <div style={{ fontSize: '40px', marginBottom: '14px' }}>📋</div>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1F1F1F', marginBottom: '6px' }}>
+      <div style={{ textAlign: 'center', padding: '32px 20px' }}>
+        <div style={{ fontSize: '32px', marginBottom: '10px' }}>📋</div>
+        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1F1F1F', marginBottom: '4px' }}>
           {isOwner ? 'Aún no publicaste ningún turno' : 'No hay turnos para mostrar'}
         </h3>
-        <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '20px' }}>
+        <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '16px' }}>
           {isOwner
             ? 'Crea tu primer turno y empieza a recibir postulantes.'
             : 'Cambia los filtros o vuelve más tarde.'}
         </p>
         {isOwner && (
-          <Button onClick={onCreateClick}>
-            <Plus size={16} style={{ marginRight: '6px' }} /> Publicar turno
+          <Button onClick={onCreateClick} size="sm">
+            <Plus size={14} style={{ marginRight: '6px' }} /> Publicar turno
           </Button>
         )}
       </div>

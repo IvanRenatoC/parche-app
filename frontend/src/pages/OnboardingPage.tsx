@@ -246,8 +246,8 @@ function OwnerOnboardingForm({
 
   return (
     <AuthLayout>
-      <Card style={{ width: '100%', maxWidth: '560px' }}>
-        <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '18px', padding: '8px' }}>
+      <Card style={{ width: '100%', maxWidth: '520px' }}>
+        <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Header
             title="Cuéntanos sobre tu negocio"
             subtitle="Solo lo mínimo para empezar. Podrás completar el resto luego en tu perfil."
@@ -394,7 +394,7 @@ function WorkerOnboardingForm({
   return (
     <AuthLayout>
       <Card style={{ width: '100%', maxWidth: '520px' }}>
-        <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '18px', padding: '8px' }}>
+        <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Header
             title="Cuéntanos un poco de ti"
             subtitle="Solo lo mínimo para empezar a postular. Lo demás lo completas después en tu perfil."

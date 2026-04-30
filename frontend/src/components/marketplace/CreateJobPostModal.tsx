@@ -98,23 +98,23 @@ export function CreateJobPostModal({ onClose, onCreated }: { onClose: () => void
 
   return (
     <ModalOverlay onClose={onClose}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>Publicar turno</h2>
-          <button onClick={onClose} style={closeButtonStyle} aria-label="Cerrar"><X size={20} /></button>
+          <h2 style={{ fontSize: '17px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>Publicar turno</h2>
+          <button onClick={onClose} style={closeButtonStyle} aria-label="Cerrar"><X size={18} /></button>
         </div>
 
         {businesses.length === 0 && (
-          <div style={{ padding: '12px 14px', borderRadius: '10px', background: '#FEF7E6', color: '#92400E', fontSize: '13px', border: '1px solid #FCE7B0' }}>
+          <div style={{ padding: '10px 12px', borderRadius: '10px', background: '#FEF7E6', color: '#92400E', fontSize: '12px', border: '1px solid #FCE7B0' }}>
             Necesitas un local registrado. Ve a tu perfil para verificar tus locales.
           </div>
         )}
 
         {error && (
-          <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fee2e2', color: '#991b1b', fontSize: '14px' }}>{error}</div>
+          <div style={{ padding: '8px 12px', borderRadius: '8px', background: '#fee2e2', color: '#991b1b', fontSize: '13px' }}>{error}</div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '11px' }}>
           <Select label="Local" options={bizOptions} placeholder="Seleccionar local…" error={errors.business_id} {...register('business_id')} />
           <Input label="Título" placeholder="Ej: Barman para turno noche" error={errors.title} {...register('title')} />
 
@@ -150,9 +150,9 @@ export function CreateJobPostModal({ onClose, onCreated }: { onClose: () => void
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '8px' }}>
-            <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" loading={isSubmitting} disabled={businesses.length === 0}>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '4px' }}>
+            <Button type="button" variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" size="sm" loading={isSubmitting} disabled={businesses.length === 0}>
               Publicar
             </Button>
           </div>
@@ -180,10 +180,10 @@ export function ModalOverlay({ children, onClose }: { children: React.ReactNode;
       <div
         style={{
           background: '#FFFFFF',
-          borderRadius: '16px',
-          padding: '24px',
+          borderRadius: '14px',
+          padding: '18px',
           width: '100%',
-          maxWidth: '560px',
+          maxWidth: '500px',
           maxHeight: '90vh',
           overflowY: 'auto',
           boxShadow: '0 20px 60px rgba(0,0,0,0.20)',
