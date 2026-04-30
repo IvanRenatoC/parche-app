@@ -100,7 +100,7 @@ export function CreateJobPostModal({ onClose, onCreated }: { onClose: () => void
     <ModalOverlay onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: '17px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>Publicar turno</h2>
+          <h2 style={{ fontSize: '17px', fontWeight: 700, color: '#111827', margin: 0 }}>Publicar turno</h2>
           <button onClick={onClose} style={closeButtonStyle} aria-label="Cerrar"><X size={18} /></button>
         </div>
 
@@ -115,40 +115,45 @@ export function CreateJobPostModal({ onClose, onCreated }: { onClose: () => void
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '11px' }}>
-          <Select label="Local" options={bizOptions} placeholder="Seleccionar local…" error={errors.business_id} {...register('business_id')} />
-          <Input label="Título" placeholder="Ej: Barman para turno noche" error={errors.title} {...register('title')} />
+          <ModalSection label="General">
+            <Select label="Local" options={bizOptions} placeholder="Seleccionar local…" error={errors.business_id} {...register('business_id')} />
+            <Input label="Título" placeholder="Ej: Barman para turno noche" error={errors.title} {...register('title')} />
+            <div style={gridTwo}>
+              <Select label="Oficio solicitado" options={occupationOptions} placeholder="Seleccionar…" error={errors.occupation} {...register('occupation')} />
+              <Input label="N° de trabajadores" type="number" min="1" max="50" error={errors.required_workers} {...register('required_workers')} />
+            </div>
+          </ModalSection>
 
-          <div style={gridTwo}>
-            <Select label="Oficio solicitado" options={occupationOptions} placeholder="Seleccionar…" error={errors.occupation} {...register('occupation')} />
-            <Input label="N° de trabajadores" type="number" min="1" max="50" error={errors.required_workers} {...register('required_workers')} />
-          </div>
+          <ModalSection label="Descripción">
+            <Textarea label="Descripción (opcional)" placeholder="Cuéntanos del turno, el ambiente y lo que necesitas…" {...register('description')} />
+            <Textarea label="Requisitos (opcional)" placeholder="Ej: experiencia mínima 2 años, traer uniforme oscuro" {...register('requirements')} />
+          </ModalSection>
 
-          <Textarea label="Descripción (opcional)" placeholder="Cuéntanos del turno, el ambiente y lo que necesitas…" {...register('description')} />
-          <Textarea label="Requisitos (opcional)" placeholder="Ej: experiencia mínima 2 años, traer uniforme oscuro" {...register('requirements')} />
+          <ModalSection label="Horario y lugar">
+            <div style={gridTwo}>
+              <Input label="Fecha inicio" type="date" error={errors.start_date} {...register('start_date')} />
+              <Input label="Fecha fin (opcional)" type="date" hint="Si es por un día, déjalo vacío." {...register('end_date')} />
+            </div>
+            <div style={gridTwo}>
+              <Input label="Hora inicio" type="time" error={errors.start_time} {...register('start_time')} />
+              <Input label="Hora término" type="time" error={errors.end_time} {...register('end_time')} />
+            </div>
+            <div style={gridTwo}>
+              <Select label="Región" options={regionOptions} placeholder="Seleccionar…" error={errors.region} {...register('region')} />
+              <Select
+                label="Comuna"
+                options={communeOptions}
+                placeholder={region ? 'Seleccionar comuna' : 'Elige primero una región'}
+                disabled={!region}
+                error={errors.commune}
+                {...register('commune')}
+              />
+            </div>
+          </ModalSection>
 
-          <div style={gridTwo}>
-            <Input label="Fecha inicio" type="date" error={errors.start_date} {...register('start_date')} />
-            <Input label="Fecha fin (opcional)" type="date" hint="Si es por un día, déjalo vacío." {...register('end_date')} />
-          </div>
-
-          <div style={gridTwo}>
-            <Input label="Hora inicio" type="time" error={errors.start_time} {...register('start_time')} />
-            <Input label="Hora término" type="time" error={errors.end_time} {...register('end_time')} />
-          </div>
-
-          <Input label="Salario total CLP" type="number" min="1000" placeholder="60000" error={errors.salary_total_clp} {...register('salary_total_clp')} />
-
-          <div style={gridTwo}>
-            <Select label="Región" options={regionOptions} placeholder="Seleccionar…" error={errors.region} {...register('region')} />
-            <Select
-              label="Comuna"
-              options={communeOptions}
-              placeholder={region ? 'Seleccionar comuna' : 'Elige primero una región'}
-              disabled={!region}
-              error={errors.commune}
-              {...register('commune')}
-            />
-          </div>
+          <ModalSection label="Remuneración">
+            <Input label="Salario total CLP" type="number" min="1000" placeholder="60000" error={errors.salary_total_clp} {...register('salary_total_clp')} />
+          </ModalSection>
 
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '4px' }}>
             <Button type="button" variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
@@ -162,13 +167,26 @@ export function CreateJobPostModal({ onClose, onCreated }: { onClose: () => void
   );
 }
 
+function ModalSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div style={{ borderBottom: '1px solid #E8E5E0', paddingBottom: '4px' }}>
+        <span style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.7px' }}>
+          {label}
+        </span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(31,31,31,0.45)',
+        background: 'rgba(17,24,39,0.5)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

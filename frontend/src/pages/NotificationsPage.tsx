@@ -46,9 +46,9 @@ export function NotificationsPage() {
       <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#111', margin: 0 }}>Notificaciones</h1>
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#111827', margin: 0 }}>Notificaciones</h1>
             {unreadCount > 0 && (
-              <p style={{ fontSize: '13px', color: '#ad4b7e', marginTop: '4px' }}>{unreadCount} sin leer</p>
+              <p style={{ fontSize: '13px', color: '#C0395B', marginTop: '4px' }}>{unreadCount} sin leer</p>
             )}
           </div>
           {unreadCount > 0 && (
@@ -86,7 +86,7 @@ function NotificationItem({ notification, onMarkRead }: { notification: Notifica
     application_not_selected: '#f59e0b',
     application_rejected: '#ef4444',
     job_post_filled: '#3b82f6',
-    new_application: '#ad4b7e',
+    new_application: '#C0395B',
     general: '#6b7280',
   };
 
@@ -111,7 +111,7 @@ function NotificationItem({ notification, onMarkRead }: { notification: Notifica
           }}
         />
         <div style={{ flex: 1 }}>
-          <p style={{ fontSize: '14px', fontWeight: notification.read ? 400 : 600, color: '#111', margin: '0 0 4px' }}>
+          <p style={{ fontSize: '14px', fontWeight: notification.read ? 400 : 600, color: '#111827', margin: '0 0 4px' }}>
             {notification.title}
           </p>
           <p style={{ fontSize: '13px', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>

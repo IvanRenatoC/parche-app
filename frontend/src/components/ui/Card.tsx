@@ -5,17 +5,16 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   padding?: 'sm' | 'md' | 'lg' | 'none';
 }
 
-const paddingMap = { none: '0', sm: '14px', md: '22px', lg: '32px' };
+const paddingMap = { none: '0', sm: '14px', md: '20px', lg: '28px' };
 
 export function Card({ children, padding = 'md', className = '', style, ...props }: CardProps) {
   return (
     <div
       style={{
         background: '#FFFFFF',
-        borderRadius: '14px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.03)',
+        borderRadius: '18px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)',
         padding: paddingMap[padding],
-        border: '1px solid #ECE7DD',
         ...style,
       }}
       className={className}
@@ -27,12 +26,12 @@ export function Card({ children, padding = 'md', className = '', style, ...props
 }
 
 const badgeColors = {
-  gray: { bg: '#F3F4F6', text: '#374151' },
-  green: { bg: '#DCFCE7', text: '#166534' },
-  amber: { bg: '#FEF3C7', text: '#92400E' },
-  pink: { bg: '#FCE7F3', text: '#9D174D' },
-  red: { bg: '#FEE2E2', text: '#991B1B' },
-  blue: { bg: '#DBEAFE', text: '#1E40AF' },
+  gray:   { bg: '#F3F4F6', text: '#4B5563' },
+  green:  { bg: '#ECFDF5', text: '#059669' },
+  amber:  { bg: '#FFFBEB', text: '#D97706' },
+  pink:   { bg: '#FEF0F4', text: '#C0395B' },
+  red:    { bg: '#FEF2F2', text: '#DC2626' },
+  blue:   { bg: '#EFF6FF', text: '#2563EB' },
 } as const;
 
 export function Badge({
@@ -48,12 +47,14 @@ export function Badge({
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        padding: '3px 10px',
+        padding: '3px 9px',
         borderRadius: '999px',
-        fontSize: '12px',
+        fontSize: '11.5px',
         fontWeight: 600,
+        letterSpacing: '0.01em',
         background: c.bg,
         color: c.text,
+        whiteSpace: 'nowrap',
       }}
     >
       {children}
@@ -77,7 +78,7 @@ export function Spinner({ size = 20 }: { size?: number }) {
       viewBox="0 0 24 24"
       style={spinnerStyle}
     >
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" opacity="0.2" />
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
       <path d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" fill="currentColor" />
     </svg>
   );

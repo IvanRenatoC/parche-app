@@ -80,7 +80,7 @@ function RolePicker({ onPick }: { onPick: (role: UserRole) => void }) {
       <Card style={{ width: '100%', maxWidth: '480px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '8px' }}>
           <div style={{ textAlign: 'center' }}>
-            <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#111827', margin: 0 }}>
               ¿Cómo quieres usar Parche?
             </h2>
             <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '8px' }}>
@@ -90,13 +90,13 @@ function RolePicker({ onPick }: { onPick: (role: UserRole) => void }) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <RoleCard
-              icon={<Briefcase size={28} color="#ad4b7e" />}
+              icon={<Briefcase size={28} color="#C0395B" />}
               title="Soy Negocio"
               description="Tengo un local y quiero publicar turnos para encontrar trabajadores."
               onClick={() => onPick('owner')}
             />
             <RoleCard
-              icon={<UserIcon size={28} color="#ad4b7e" />}
+              icon={<UserIcon size={28} color="#C0395B" />}
               title="Soy Trabajador"
               description="Busco turnos temporales en restaurantes, bares u otros locales."
               onClick={() => onPick('worker')}
@@ -133,22 +133,24 @@ function RoleCard({
         alignItems: 'center',
         padding: '18px 20px',
         borderRadius: '14px',
-        border: '1.5px solid #E5E7EB',
+        border: '1.5px solid #E8E5E0',
         background: '#FFFFFF',
         cursor: 'pointer',
         textAlign: 'left',
-        transition: 'border-color 0.15s, transform 0.05s',
+        transition: 'border-color 0.15s, box-shadow 0.15s',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = '#ad4b7e';
+        e.currentTarget.style.borderColor = '#C0395B';
+        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(192, 57, 91, 0.08)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = '#E5E7EB';
+        e.currentTarget.style.borderColor = '#E8E5E0';
+        e.currentTarget.style.boxShadow = 'none';
       }}
     >
       {icon}
       <div>
-        <div style={{ fontSize: '17px', fontWeight: 700, color: '#1F1F1F' }}>{title}</div>
+        <div style={{ fontSize: '17px', fontWeight: 700, color: '#111827' }}>{title}</div>
         <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px', lineHeight: 1.45 }}>
           {description}
         </div>
@@ -452,8 +454,9 @@ function Header({ title, subtitle, onBack }: { title: string; subtitle: string; 
         style={{
           background: 'none',
           border: 'none',
-          color: '#ad4b7e',
+          color: '#C0395B',
           fontSize: '13px',
+          fontWeight: 500,
           padding: 0,
           marginBottom: '10px',
           cursor: 'pointer',
@@ -461,7 +464,7 @@ function Header({ title, subtitle, onBack }: { title: string; subtitle: string; 
       >
         ← Cambiar tipo de cuenta
       </button>
-      <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>{title}</h2>
+      <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#111827', margin: 0 }}>{title}</h2>
       <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '6px', lineHeight: 1.5 }}>{subtitle}</p>
     </div>
   );
@@ -469,14 +472,14 @@ function Header({ title, subtitle, onBack }: { title: string; subtitle: string; 
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ borderBottom: '1px solid #F1ECE3', paddingBottom: '6px' }}>
+    <div style={{ borderBottom: '1px solid #E8E5E0', paddingBottom: '6px' }}>
       <h3
         style={{
-          fontSize: '12px',
+          fontSize: '11px',
           fontWeight: 700,
-          color: '#ad4b7e',
+          color: '#9CA3AF',
           textTransform: 'uppercase',
-          letterSpacing: '0.6px',
+          letterSpacing: '0.7px',
           margin: 0,
         }}
       >

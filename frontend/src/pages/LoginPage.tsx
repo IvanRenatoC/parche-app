@@ -56,7 +56,7 @@ export function LoginPage() {
       <Card style={{ width: '100%', maxWidth: '420px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '8px' }}>
           <div>
-            <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#1F1F1F' }}>Hola de nuevo</h2>
+            <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#111827' }}>Hola de nuevo</h2>
             <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>
               Inicia sesión para entrar a Parche
             </p>
@@ -87,7 +87,7 @@ export function LoginPage() {
             />
 
             <div style={{ textAlign: 'right' }}>
-              <Link to="/forgot-password" style={{ fontSize: '13px', color: '#ad4b7e' }}>
+              <Link to="/forgot-password" style={{ fontSize: '13px', color: '#C0395B' }}>
                 ¿Olvidaste tu contraseña?
               </Link>
             </div>
@@ -98,9 +98,9 @@ export function LoginPage() {
           </form>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ flex: 1, height: '1px', background: '#E5E7EB' }} />
+            <div style={{ flex: 1, height: '1px', background: '#E8E5E0' }} />
             <span style={{ fontSize: '12px', color: '#9CA3AF' }}>o continuar con</span>
-            <div style={{ flex: 1, height: '1px', background: '#E5E7EB' }} />
+            <div style={{ flex: 1, height: '1px', background: '#E8E5E0' }} />
           </div>
 
           <Button
@@ -116,7 +116,7 @@ export function LoginPage() {
 
           <p style={{ textAlign: 'center', fontSize: '14px', color: '#6B7280' }}>
             ¿No tienes cuenta?{' '}
-            <Link to="/register" style={{ color: '#ad4b7e', fontWeight: 600 }}>
+            <Link to="/register" style={{ color: '#C0395B', fontWeight: 600 }}>
               Regístrate
             </Link>
           </p>

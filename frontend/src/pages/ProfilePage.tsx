@@ -71,14 +71,14 @@ function PersonalCard() {
           <div
             style={{
               width: '64px', height: '64px', borderRadius: '50%',
-              background: '#ad4b7e', display: 'flex', alignItems: 'center',
+              background: '#C0395B', display: 'flex', alignItems: 'center',
               justifyContent: 'center', color: '#FFFFFF', fontSize: '24px', fontWeight: 700,
             }}
           >
             {appUser.first_name?.[0]?.toUpperCase() ?? appUser.email[0]?.toUpperCase()}
           </div>
           <div>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#111827', margin: 0 }}>
               {appUser.first_name || appUser.last_name
                 ? `${appUser.first_name} ${appUser.last_name}`
                 : 'Sin nombre'}
@@ -169,7 +169,7 @@ function OwnerSection() {
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-        <StatCard icon={<Briefcase size={20} color="#ad4b7e" />} label="Publicaciones" value={String(posts.length)} />
+        <StatCard icon={<Briefcase size={20} color="#C0395B" />} label="Publicaciones" value={String(posts.length)} />
         <StatCard icon={<UserIcon size={20} color="#22C55E" />} label="Trabajadores aceptados" value={String(totalAccepted)} />
         <StatCard icon={<DollarSign size={20} color="#F59E0B" />} label="Total invertido" value={`$${totalSpent.toLocaleString('es-CL')}`} />
       </div>
@@ -210,11 +210,11 @@ function OwnerSection() {
             {posts.map((post) => (
               <div key={post.id} style={historyRow}>
                 <div>
-                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#1F1F1F', margin: 0 }}>{post.title}</p>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>{post.title}</p>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '2px' }}>
                     <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{post.start_date}</span>
                     <span style={{ fontSize: '12px', color: '#9CA3AF' }}>·</span>
-                    <span style={{ fontSize: '12px', color: '#ad4b7e' }}>{post.occupation}</span>
+                    <span style={{ fontSize: '12px', color: '#C0395B' }}>{post.occupation}</span>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -302,7 +302,7 @@ function BusinessRow({
     return (
       <div style={businessRowStyle}>
         <div>
-          <p style={{ fontSize: '15px', fontWeight: 600, color: '#1F1F1F', margin: 0 }}>{business.business_name}</p>
+          <p style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: 0 }}>{business.business_name}</p>
           <p style={{ fontSize: '12px', color: '#6B7280', margin: '4px 0 0' }}>
             RUT {business.business_rut} · {BUSINESS_TYPES[business.business_type] ?? business.business_type}
           </p>
@@ -433,7 +433,7 @@ function WorkerSection() {
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-        <StatCard icon={<Briefcase size={20} color="#ad4b7e" />} label="Postulaciones" value={String(applications.length)} />
+        <StatCard icon={<Briefcase size={20} color="#C0395B" />} label="Postulaciones" value={String(applications.length)} />
         <StatCard icon={<UserIcon size={20} color="#22C55E" />} label="Aceptadas" value={String(accepted.length)} />
         <StatCard icon={<UserIcon size={20} color="#F59E0B" />} label="No seleccionadas" value={String(rejected.length)} />
       </div>
@@ -499,7 +499,7 @@ function WorkerSection() {
             {applications.map((app) => (
               <div key={app.id} style={historyRow}>
                 <div>
-                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#1F1F1F', margin: 0 }}>
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#111827', margin: 0 }}>
                     Publicación {app.job_post_id.slice(0, 10)}…
                   </p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', color: '#9CA3AF', fontSize: '12px' }}>
@@ -551,7 +551,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {icon}
         <div>
-          <p style={{ fontSize: '22px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>{value}</p>
+          <p style={{ fontSize: '22px', fontWeight: 700, color: '#111827', margin: 0 }}>{value}</p>
           <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '2px 0 0' }}>{label}</p>
         </div>
       </div>
@@ -565,7 +565,7 @@ function InfoField({ label, value }: { label: string; value: string }) {
       <p style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 2px' }}>
         {label}
       </p>
-      <p style={{ fontSize: '14px', color: '#1F1F1F', fontWeight: 500, margin: 0 }}>{value}</p>
+      <p style={{ fontSize: '14px', color: '#111827', fontWeight: 500, margin: 0 }}>{value}</p>
     </div>
   );
 }
@@ -582,7 +582,7 @@ function SectionHeader({
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
       <div>
-        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>{title}</h3>
+        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827', margin: 0 }}>{title}</h3>
         {subtitle && <p style={{ fontSize: '13px', color: '#6B7280', margin: '4px 0 0' }}>{subtitle}</p>}
       </div>
       {right}
