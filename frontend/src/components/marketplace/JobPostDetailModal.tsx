@@ -161,8 +161,8 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div style={{ flex: 1 }}>
             <Badge color={statusColors[post.status] ?? 'gray'}>{JOB_POST_STATUS_LABEL[post.status]}</Badge>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1F1F1F', margin: '8px 0 4px' }}>{post.title}</h2>
-            <p style={{ fontSize: '14px', color: '#ad4b7e', fontWeight: 600, margin: 0 }}>{post.occupation}</p>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#111827', margin: '8px 0 4px' }}>{post.title}</h2>
+            <p style={{ fontSize: '14px', color: '#C0395B', fontWeight: 600, margin: 0 }}>{post.occupation}</p>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}>
             <X size={20} />
@@ -196,7 +196,7 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
             <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
               Descripción
             </h4>
-            <p style={{ fontSize: '14px', color: '#1F1F1F', lineHeight: 1.6 }}>{post.description}</p>
+            <p style={{ fontSize: '14px', color: '#111827', lineHeight: 1.6 }}>{post.description}</p>
           </div>
         )}
 
@@ -205,7 +205,7 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
             <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
               Requisitos
             </h4>
-            <p style={{ fontSize: '14px', color: '#1F1F1F', lineHeight: 1.6 }}>{post.requirements}</p>
+            <p style={{ fontSize: '14px', color: '#111827', lineHeight: 1.6 }}>{post.requirements}</p>
           </div>
         )}
 
@@ -270,7 +270,7 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
             )}
 
             <div>
-              <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#1F1F1F', marginBottom: '12px' }}>
+              <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '12px' }}>
                 Postulantes ({applications.filter((a) => a.status === 'applied').length} activos)
               </h4>
               {loadingApps ? (
@@ -332,14 +332,14 @@ function ApplicationRow({
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <div style={{
-          width: '40px', height: '40px', borderRadius: '50%', background: '#ad4b7e',
+          width: '40px', height: '40px', borderRadius: '50%', background: '#C0395B',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '14px', fontWeight: 700, color: '#FFFFFF',
         }}>
           {initials}
         </div>
         <div>
-          <p style={{ fontSize: '14px', fontWeight: 600, color: '#1F1F1F', margin: 0 }}>{displayName}</p>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>{displayName}</p>
           {occupation && (
             <p style={{ fontSize: '12px', color: '#6B7280', margin: '2px 0 0' }}>
               {occupation.name} · {occupation.years_experience} años
@@ -368,7 +368,7 @@ function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: str
       <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#9CA3AF', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
         {icon} {label}
       </div>
-      <span style={{ fontSize: '14px', color: '#1F1F1F', fontWeight: 500 }}>{children}</span>
+      <span style={{ fontSize: '14px', color: '#111827', fontWeight: 500 }}>{children}</span>
     </div>
   );
 }

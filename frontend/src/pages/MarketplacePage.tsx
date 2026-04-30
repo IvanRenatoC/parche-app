@@ -55,7 +55,7 @@ export function MarketplacePage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#111827', margin: 0 }}>
               {isOwner ? 'Mis publicaciones' : 'Turnos disponibles'}
             </h1>
             <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}>
@@ -75,8 +75,8 @@ export function MarketplacePage() {
         {!isOwner && (
           <Card padding="sm">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <Filter size={16} color="#ad4b7e" />
-              <span style={{ fontSize: '14px', fontWeight: 600, color: '#1F1F1F' }}>Filtros</span>
+              <Filter size={16} color="#C0395B" />
+              <span style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>Filtros</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
               <Select
@@ -203,18 +203,18 @@ function JobPostRow({ post, isOwner, onClick }: { post: JobPost; isOwner: boolea
         gap: '16px',
         padding: '12px 16px',
         background: '#FFFFFF',
-        border: '1px solid #ECE7DD',
+        border: '1px solid #E8E5E0',
         borderRadius: '12px',
         cursor: 'pointer',
         transition: 'box-shadow 0.15s, border-color 0.15s',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.08)';
-        e.currentTarget.style.borderColor = '#ad4b7e';
+        e.currentTarget.style.borderColor = '#C0395B';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.boxShadow = 'none';
-        e.currentTarget.style.borderColor = '#ECE7DD';
+        e.currentTarget.style.borderColor = '#E8E5E0';
       }}
     >
       <div style={{ flex: '1 1 240px', minWidth: 0 }}>
@@ -223,7 +223,7 @@ function JobPostRow({ post, isOwner, onClick }: { post: JobPost; isOwner: boolea
             style={{
               fontSize: '15px',
               fontWeight: 700,
-              color: '#1F1F1F',
+              color: '#111827',
               margin: 0,
               lineHeight: 1.3,
               overflow: 'hidden',
@@ -235,7 +235,7 @@ function JobPostRow({ post, isOwner, onClick }: { post: JobPost; isOwner: boolea
           </h3>
           <Badge color={statusColors[post.status] ?? 'gray'}>{JOB_POST_STATUS_LABEL[post.status]}</Badge>
         </div>
-        <p style={{ fontSize: '12px', color: '#ad4b7e', fontWeight: 600, marginTop: '3px' }}>
+        <p style={{ fontSize: '12px', color: '#C0395B', fontWeight: 600, marginTop: '3px' }}>
           {post.occupation}
         </p>
       </div>
@@ -255,7 +255,7 @@ function JobPostRow({ post, isOwner, onClick }: { post: JobPost; isOwner: boolea
         ${post.salary_total_clp?.toLocaleString('es-CL')}
       </RowMeta>
 
-      <div style={{ flexShrink: 0, fontSize: '12px', color: '#ad4b7e', fontWeight: 600, whiteSpace: 'nowrap' }}>
+      <div style={{ flexShrink: 0, fontSize: '12px', color: '#C0395B', fontWeight: 600, whiteSpace: 'nowrap' }}>
         {isOwner ? 'Ver postulantes →' : 'Postular →'}
       </div>
     </div>
@@ -277,7 +277,7 @@ function RowMeta({
         display: 'flex',
         alignItems: 'center',
         gap: '6px',
-        color: bold ? '#1F1F1F' : '#6B7280',
+        color: bold ? '#111827' : '#6B7280',
         fontSize: '12.5px',
         fontWeight: bold ? 600 : 500,
         flexShrink: 0,
@@ -295,7 +295,7 @@ function EmptyState({ isOwner, onCreateClick }: { isOwner: boolean; onCreateClic
     <Card>
       <div style={{ textAlign: 'center', padding: '32px 20px' }}>
         <div style={{ fontSize: '32px', marginBottom: '10px' }}>📋</div>
-        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1F1F1F', marginBottom: '4px' }}>
+        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>
           {isOwner ? 'Aún no publicaste ningún turno' : 'No hay turnos para mostrar'}
         </h3>
         <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '16px' }}>
