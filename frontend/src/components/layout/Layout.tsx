@@ -1,11 +1,21 @@
 import type { ReactNode } from 'react';
 import { Navbar } from './Navbar';
 
+const PAGE_BG = '#F7F4EF';
+
 export function Layout({ children }: { children: ReactNode }) {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f2f3f5' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: PAGE_BG }}>
       <Navbar />
-      <main style={{ flex: 1, width: '100%', maxWidth: '1200px', margin: '0 auto', padding: '24px 16px' }}>
+      <main
+        style={{
+          flex: 1,
+          width: '100%',
+          maxWidth: '1180px',
+          margin: '0 auto',
+          padding: '28px 20px 64px',
+        }}
+      >
         {children}
       </main>
     </div>
@@ -21,14 +31,14 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #fce7f3 0%, #f2f3f5 50%, #fff 100%)',
-        padding: '24px 16px',
+        background: PAGE_BG,
+        padding: '32px 16px',
       }}
     >
       <div style={{ marginBottom: '28px', textAlign: 'center' }}>
         <h1
           style={{
-            fontSize: '36px',
+            fontSize: '40px',
             fontWeight: 800,
             color: '#ad4b7e',
             letterSpacing: '-1px',
@@ -37,11 +47,11 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         >
           Parche
         </h1>
-        <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>
-          Conectamos locales con talento temporal
+        <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '6px' }}>
+          Conectamos locales con personas que quieren trabajar
         </p>
       </div>
-      {children}
+      <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>{children}</div>
     </div>
   );
 }

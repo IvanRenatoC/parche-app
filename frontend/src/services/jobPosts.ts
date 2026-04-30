@@ -2,7 +2,6 @@ import {
   collection,
   query,
   where,
-  orderBy,
   getDocs,
   getDoc,
   doc,
@@ -22,26 +21,33 @@ export interface JobPostFilters {
 }
 
 export async function getPublishedJobPosts(filters: JobPostFilters = {}): Promise<JobPost[]> {
-  const constraints: QueryConstraint[] = [
-    where('status', '==', 'published'),
-    orderBy('created_at', 'desc'),
-  ];
+  // Sin orderBy en Firestore para no exigir índice compuesto status+created_at;
+  // ordenamos en cliente. Funciona aunque los índices no estén desplegados.
+  const constraints: QueryConstraint[] = [where('status', '==', 'published')];
   if (filters.region) constraints.push(where('region', '==', filters.region));
   if (filters.occupation) constraints.push(where('occupation', '==', filters.occupation));
 
   const q = query(collection(db, 'job_posts'), ...constraints);
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as JobPost));
+  const posts = snap.docs.map(d => ({ id: d.id, ...d.data() } as JobPost));
+  return posts.sort((a, b) => {
+    const ta = (a.created_at as { seconds?: number } | null)?.seconds ?? 0;
+    const tb = (b.created_at as { seconds?: number } | null)?.seconds ?? 0;
+    return tb - ta;
+  });
 }
 
 export async function getOwnerJobPosts(ownerUid: string): Promise<JobPost[]> {
-  const q = query(
-    collection(db, 'job_posts'),
-    where('owner_uid', '==', ownerUid),
-    orderBy('created_at', 'desc')
-  );
+  // Sin orderBy en Firestore para no exigir índice compuesto owner_uid+created_at;
+  // ordenamos en cliente. Owner-side rara vez tiene muchos posts.
+  const q = query(collection(db, 'job_posts'), where('owner_uid', '==', ownerUid));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as JobPost));
+  const posts = snap.docs.map(d => ({ id: d.id, ...d.data() } as JobPost));
+  return posts.sort((a, b) => {
+    const ta = (a.created_at as { seconds?: number } | null)?.seconds ?? 0;
+    const tb = (b.created_at as { seconds?: number } | null)?.seconds ?? 0;
+    return tb - ta;
+  });
 }
 
 export async function getJobPost(id: string): Promise<JobPost | null> {
@@ -74,13 +80,14 @@ export async function closeJobPost(id: string, reason: string): Promise<void> {
 }
 
 export async function getJobPostApplications(jobPostId: string): Promise<Application[]> {
-  const q = query(
-    collection(db, 'applications'),
-    where('job_post_id', '==', jobPostId),
-    orderBy('created_at', 'desc')
-  );
+  const q = query(collection(db, 'applications'), where('job_post_id', '==', jobPostId));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Application));
+  const apps = snap.docs.map(d => ({ id: d.id, ...d.data() } as Application));
+  return apps.sort((a, b) => {
+    const ta = (a.created_at as { seconds?: number } | null)?.seconds ?? 0;
+    const tb = (b.created_at as { seconds?: number } | null)?.seconds ?? 0;
+    return tb - ta;
+  });
 }
 
 export async function applyToJobPost(jobPostId: string, ownerUid: string, workerUid: string): Promise<string> {
@@ -107,11 +114,12 @@ export async function withdrawApplication(applicationId: string, reason: string)
 }
 
 export async function getWorkerApplications(workerUid: string): Promise<Application[]> {
-  const q = query(
-    collection(db, 'applications'),
-    where('worker_uid', '==', workerUid),
-    orderBy('created_at', 'desc')
-  );
+  const q = query(collection(db, 'applications'), where('worker_uid', '==', workerUid));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Application));
+  const apps = snap.docs.map(d => ({ id: d.id, ...d.data() } as Application));
+  return apps.sort((a, b) => {
+    const ta = (a.created_at as { seconds?: number } | null)?.seconds ?? 0;
+    const tb = (b.created_at as { seconds?: number } | null)?.seconds ?? 0;
+    return tb - ta;
+  });
 }

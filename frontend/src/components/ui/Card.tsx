@@ -1,20 +1,21 @@
-import type { ReactNode, HTMLAttributes } from 'react';
+import type { ReactNode, HTMLAttributes, CSSProperties } from 'react';
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   padding?: 'sm' | 'md' | 'lg' | 'none';
 }
 
-const paddingMap = { none: '0', sm: '12px', md: '20px', lg: '28px' };
+const paddingMap = { none: '0', sm: '14px', md: '22px', lg: '32px' };
 
 export function Card({ children, padding = 'md', className = '', style, ...props }: CardProps) {
   return (
     <div
       style={{
-        background: '#fff',
-        borderRadius: '12px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)',
+        background: '#FFFFFF',
+        borderRadius: '14px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.03)',
         padding: paddingMap[padding],
+        border: '1px solid #ECE7DD',
         ...style,
       }}
       className={className}
@@ -25,31 +26,32 @@ export function Card({ children, padding = 'md', className = '', style, ...props
   );
 }
 
+const badgeColors = {
+  gray: { bg: '#F3F4F6', text: '#374151' },
+  green: { bg: '#DCFCE7', text: '#166534' },
+  amber: { bg: '#FEF3C7', text: '#92400E' },
+  pink: { bg: '#FCE7F3', text: '#9D174D' },
+  red: { bg: '#FEE2E2', text: '#991B1B' },
+  blue: { bg: '#DBEAFE', text: '#1E40AF' },
+} as const;
+
 export function Badge({
   children,
   color = 'gray',
 }: {
   children: ReactNode;
-  color?: 'gray' | 'green' | 'amber' | 'pink' | 'red' | 'blue';
+  color?: keyof typeof badgeColors;
 }) {
-  const colors = {
-    gray: { bg: '#f2f3f5', text: '#374151' },
-    green: { bg: '#dcfce7', text: '#166534' },
-    amber: { bg: '#fef3c7', text: '#92400e' },
-    pink: { bg: '#fce7f3', text: '#831843' },
-    red: { bg: '#fee2e2', text: '#991b1b' },
-    blue: { bg: '#dbeafe', text: '#1e40af' },
-  };
-  const c = colors[color];
+  const c = badgeColors[color];
   return (
     <span
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        padding: '2px 8px',
-        borderRadius: '9999px',
+        padding: '3px 10px',
+        borderRadius: '999px',
         fontSize: '12px',
-        fontWeight: 500,
+        fontWeight: 600,
         background: c.bg,
         color: c.text,
       }}
@@ -58,6 +60,11 @@ export function Badge({
     </span>
   );
 }
+
+const spinnerStyle: CSSProperties = {
+  display: 'inline-block',
+  color: 'inherit',
+};
 
 export function Spinner({ size = 20 }: { size?: number }) {
   return (
@@ -68,9 +75,10 @@ export function Spinner({ size = 20 }: { size?: number }) {
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"
+      style={spinnerStyle}
     >
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" opacity="0.2" />
+      <path d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" fill="currentColor" />
     </svg>
   );
 }

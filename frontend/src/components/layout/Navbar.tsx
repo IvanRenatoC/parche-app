@@ -1,13 +1,24 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Bell, LogOut, User, Briefcase } from 'lucide-react';
+import { Bell, LogOut, User, Briefcase, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export function Navbar() {
   const { appUser, logOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    if (menuOpen) document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [menuOpen]);
 
   async function handleLogout() {
     await logOut();
@@ -15,12 +26,13 @@ export function Navbar() {
   }
 
   const isActive = (path: string) => location.pathname === path;
+  const roleLabel = appUser?.role === 'owner' ? 'Negocio' : 'Trabajador';
 
   return (
     <nav
       style={{
-        background: '#fff',
-        borderBottom: '1px solid #f0f0f0',
+        background: '#FFFFFF',
+        borderBottom: '1px solid #ECE7DD',
         padding: '0 24px',
         height: '64px',
         display: 'flex',
@@ -29,10 +41,8 @@ export function Navbar() {
         position: 'sticky',
         top: 0,
         zIndex: 50,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
       }}
     >
-      {/* Logo */}
       <Link
         to="/"
         style={{
@@ -46,58 +56,55 @@ export function Navbar() {
         Parche
       </Link>
 
-      {/* Nav links */}
       {appUser && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <NavLink to="/marketplace" active={isActive('/marketplace')} icon={<Briefcase size={16} />}>
-            {appUser.role === 'owner' ? 'Mis publicaciones' : 'Publicaciones'}
+            {appUser.role === 'owner' ? 'Mis publicaciones' : 'Buscar turnos'}
           </NavLink>
           <NavLink to="/profile" active={isActive('/profile')} icon={<User size={16} />}>
-            Mi perfil
+            Mis datos
           </NavLink>
         </div>
       )}
 
-      {/* Right side */}
       {appUser ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Link
             to="/notifications"
+            aria-label="Notificaciones"
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               width: '36px',
               height: '36px',
-              borderRadius: '8px',
-              color: '#6b7280',
+              borderRadius: '10px',
+              color: '#6B7280',
               transition: 'background 0.15s',
             }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#f2f3f5')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#F7F4EF')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
             <Bell size={18} />
           </Link>
 
-          <div style={{ position: 'relative' }}>
+          <div ref={menuRef} style={{ position: 'relative' }}>
             <button
-              onClick={() => setMenuOpen(!menuOpen)}
+              onClick={() => setMenuOpen((m) => !m)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'transparent',
+                padding: '6px 10px 6px 6px',
+                borderRadius: '999px',
+                border: '1px solid #ECE7DD',
+                background: '#FFFFFF',
                 cursor: 'pointer',
                 fontSize: '14px',
                 fontWeight: 500,
-                color: '#374151',
+                color: '#1F1F1F',
                 transition: 'background 0.15s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#f2f3f5')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
               <div
                 style={{
@@ -108,37 +115,41 @@ export function Navbar() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#fff',
+                  color: '#FFFFFF',
                   fontSize: '13px',
-                  fontWeight: 600,
+                  fontWeight: 700,
                 }}
               >
-                {appUser.first_name?.[0] ?? appUser.email[0].toUpperCase()}
+                {appUser.first_name?.[0]?.toUpperCase() ?? appUser.email[0].toUpperCase()}
               </div>
-              <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {appUser.first_name || appUser.email}
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.1 }}>
+                <span style={{ fontSize: '13px', fontWeight: 600, maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {appUser.first_name || appUser.email}
+                </span>
+                <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 500 }}>{roleLabel}</span>
               </span>
+              <ChevronDown size={14} color="#9CA3AF" />
             </button>
 
             {menuOpen && (
               <div
                 style={{
                   position: 'absolute',
-                  top: '44px',
+                  top: '52px',
                   right: 0,
-                  background: '#fff',
-                  borderRadius: '10px',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                  minWidth: '160px',
+                  background: '#FFFFFF',
+                  borderRadius: '12px',
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.10)',
+                  minWidth: '180px',
                   padding: '6px',
-                  border: '1px solid #f0f0f0',
+                  border: '1px solid #ECE7DD',
                 }}
               >
                 <button
                   onClick={() => { navigate('/profile'); setMenuOpen(false); }}
                   style={menuItemStyle}
                 >
-                  <User size={15} /> Perfil
+                  <User size={15} /> Mis datos
                 </button>
                 <button
                   onClick={() => { handleLogout(); setMenuOpen(false); }}
@@ -152,8 +163,8 @@ export function Navbar() {
         </div>
       ) : (
         <div style={{ display: 'flex', gap: '8px' }}>
-          <Link to="/login" style={linkButtonStyle('#fff', '#000')}>Iniciar sesión</Link>
-          <Link to="/register" style={linkButtonStyle('#000', '#fff')}>Registrarse</Link>
+          <Link to="/login" style={linkButtonStyle('#FFFFFF', '#1F1F1F')}>Iniciar sesión</Link>
+          <Link to="/register" style={linkButtonStyle('#1F1F1F', '#FFFFFF')}>Crear cuenta</Link>
         </div>
       )}
     </nav>
@@ -178,12 +189,12 @@ function NavLink({
         display: 'flex',
         alignItems: 'center',
         gap: '6px',
-        padding: '6px 12px',
-        borderRadius: '8px',
+        padding: '8px 14px',
+        borderRadius: '10px',
         fontSize: '14px',
-        fontWeight: active ? 600 : 400,
-        color: active ? '#ad4b7e' : '#374151',
-        background: active ? '#fce7f3' : 'transparent',
+        fontWeight: active ? 600 : 500,
+        color: active ? '#1F1F1F' : '#6B7280',
+        background: active ? '#F7F4EF' : 'transparent',
         textDecoration: 'none',
         transition: 'all 0.15s',
       }}
@@ -197,27 +208,28 @@ function NavLink({
 const menuItemStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: '8px',
+  gap: '10px',
   width: '100%',
-  padding: '8px 10px',
-  borderRadius: '6px',
+  padding: '10px 12px',
+  borderRadius: '8px',
   border: 'none',
   background: 'transparent',
   cursor: 'pointer',
   fontSize: '13px',
-  color: '#374151',
+  color: '#1F1F1F',
   textAlign: 'left',
+  fontWeight: 500,
 };
 
 function linkButtonStyle(bg: string, color: string): React.CSSProperties {
   return {
-    padding: '6px 16px',
-    borderRadius: '8px',
+    padding: '8px 18px',
+    borderRadius: '10px',
     fontSize: '14px',
-    fontWeight: 500,
+    fontWeight: 600,
     background: bg,
     color,
-    border: '1.5px solid #000',
+    border: '1.5px solid #1F1F1F',
     textDecoration: 'none',
     display: 'inline-flex',
     alignItems: 'center',
