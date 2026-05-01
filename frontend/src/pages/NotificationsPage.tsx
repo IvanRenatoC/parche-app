@@ -3,7 +3,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { Layout } from '../components/layout/Layout';
 import { Card, Spinner } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { getNotifications, markAllNotificationsRead, markNotificationRead } from '../services/notifications';
+import {
+  getNotifications,
+  isNotificationUnread,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '../services/notifications';
 import type { Notification } from '../types';
 import { Bell, CheckCheck } from 'lucide-react';
 
@@ -17,7 +22,7 @@ export function NotificationsPage() {
     if (!appUser) return;
     setLoading(true);
     try {
-      const data = await getNotifications(appUser.uid);
+      const data = await getNotifications(appUser.uid, appUser.role);
       setNotifications(data);
     } finally {
       setLoading(false);
@@ -29,17 +34,28 @@ export function NotificationsPage() {
   async function handleMarkAllRead() {
     if (!appUser) return;
     setMarkingAll(true);
-    await markAllNotificationsRead(appUser.uid);
+    await markAllNotificationsRead(appUser.uid, appUser.role);
     await fetchNotifications();
     setMarkingAll(false);
   }
 
-  async function handleMarkRead(id: string) {
-    await markNotificationRead(id);
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  async function handleMarkRead(n: Notification) {
+    if (!appUser) return;
+    await markNotificationRead(n, appUser.uid);
+    setNotifications((prev) =>
+      prev.map((x) =>
+        x.id === n.id
+          ? x.recipient_role
+            ? { ...x, read_by: [...(x.read_by ?? []), appUser.uid] }
+            : { ...x, read: true }
+          : x
+      )
+    );
   }
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = appUser
+    ? notifications.filter((n) => isNotificationUnread(n, appUser.uid)).length
+    : 0;
 
   return (
     <Layout>
@@ -71,7 +87,12 @@ export function NotificationsPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {notifications.map(n => (
-              <NotificationItem key={n.id} notification={n} onMarkRead={() => handleMarkRead(n.id)} />
+              <NotificationItem
+                key={n.id}
+                notification={n}
+                unread={appUser ? isNotificationUnread(n, appUser.uid) : false}
+                onMarkRead={() => handleMarkRead(n)}
+              />
             ))}
           </div>
         )}
@@ -80,13 +101,23 @@ export function NotificationsPage() {
   );
 }
 
-function NotificationItem({ notification, onMarkRead }: { notification: Notification; onMarkRead: () => void }) {
+function NotificationItem({
+  notification,
+  unread,
+  onMarkRead,
+}: {
+  notification: Notification;
+  unread: boolean;
+  onMarkRead: () => void;
+}) {
   const typeColors: Record<string, string> = {
     application_accepted: '#22c55e',
     application_not_selected: '#f59e0b',
     application_rejected: '#ef4444',
+    application_withdrawn: '#f59e0b',
     job_post_filled: '#3b82f6',
     new_application: '#C0395B',
+    new_job_post: '#3b82f6',
     general: '#6b7280',
   };
 
@@ -96,22 +127,22 @@ function NotificationItem({ notification, onMarkRead }: { notification: Notifica
     <Card
       padding="sm"
       style={{
-        border: notification.read ? '1px solid #f0f0f0' : '1px solid #fce7f3',
-        background: notification.read ? '#fff' : '#fdf4f8',
-        cursor: notification.read ? 'default' : 'pointer',
+        border: unread ? '1px solid #fce7f3' : '1px solid #f0f0f0',
+        background: unread ? '#fdf4f8' : '#fff',
+        cursor: unread ? 'pointer' : 'default',
       }}
-      onClick={!notification.read ? onMarkRead : undefined}
+      onClick={unread ? onMarkRead : undefined}
     >
       <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
         <div
           style={{
             width: '10px', height: '10px', borderRadius: '50%',
-            background: notification.read ? '#e5e7eb' : color,
+            background: unread ? color : '#e5e7eb',
             flexShrink: 0, marginTop: '4px',
           }}
         />
         <div style={{ flex: 1 }}>
-          <p style={{ fontSize: '14px', fontWeight: notification.read ? 400 : 600, color: '#111827', margin: '0 0 4px' }}>
+          <p style={{ fontSize: '14px', fontWeight: unread ? 600 : 400, color: '#111827', margin: '0 0 4px' }}>
             {notification.title}
           </p>
           <p style={{ fontSize: '13px', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
