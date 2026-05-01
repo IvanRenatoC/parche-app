@@ -36,6 +36,7 @@ export interface GoogleMapInstance {
 export interface GoogleMarker {
   setPosition: (pos: GoogleLatLngLiteral) => void;
   setMap: (map: GoogleMapInstance | null) => void;
+  addListener: (event: string, handler: () => void) => void;
 }
 
 export interface GoogleNs {

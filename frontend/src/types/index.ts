@@ -111,6 +111,12 @@ export interface JobPost {
   commune: string;
   status: JobPostStatus;
   close_reason: string | null;
+  /** Denormalized from Business so workers can render the post without
+   * needing read access to the businesses collection. */
+  business_name?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
   created_at: string;
   updated_at: string;
   business?: Business;
