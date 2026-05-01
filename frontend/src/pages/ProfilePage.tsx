@@ -446,11 +446,6 @@ function BusinessRow({
           <p style={{ fontSize: '12px', color: '#6B7280', margin: '4px 0 0' }}>
             RUT {business.business_rut} · {BUSINESS_TYPES[business.business_type] ?? business.business_type}
           </p>
-          {(business.region || business.commune) && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', color: '#9CA3AF', fontSize: '12px' }}>
-              <MapPin size={11} /> {business.commune || '—'}, {business.region || '—'}
-            </div>
-          )}
           {business.address && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', color: '#6B7280', fontSize: '12px' }}>
               <MapPin size={11} color="#C0395B" /> {business.address}
