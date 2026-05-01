@@ -11,9 +11,10 @@ import {
 } from '../services/jobPosts';
 import type { JobPost } from '../types';
 import { OCCUPATIONS, JOB_POST_STATUS_LABEL } from '../types';
-import { Plus, MapPin, Clock, Users, DollarSign, Filter, Calendar } from 'lucide-react';
+import { Plus, MapPin, Clock, Users, DollarSign, Filter, Calendar, List, Map as MapIcon } from 'lucide-react';
 import { CreateJobPostModal } from '../components/marketplace/CreateJobPostModal';
 import { JobPostDetailModal } from '../components/marketplace/JobPostDetailModal';
+import { JobsMap } from '../components/marketplace/JobsMap';
 import { CHILE_LOCATIONS, getCommunesForRegion } from '../lib/chileLocations';
 
 export function MarketplacePage() {
@@ -25,6 +26,7 @@ export function MarketplacePage() {
   const [filters, setFilters] = useState<JobPostFilters>({});
   const [showCreate, setShowCreate] = useState(false);
   const [selectedPost, setSelectedPost] = useState<JobPost | null>(null);
+  const [view, setView] = useState<'list' | 'map'>('list');
 
   const fetchPosts = useCallback(async () => {
     if (!appUser) return;
@@ -74,9 +76,12 @@ export function MarketplacePage() {
 
         {!isOwner && (
           <Card padding="sm">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <Filter size={16} color="#C0395B" />
-              <span style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>Filtros</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Filter size={16} color="#C0395B" />
+                <span style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>Filtros</span>
+              </div>
+              <ViewToggle view={view} onChange={setView} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
               <Select
@@ -121,6 +126,11 @@ export function MarketplacePage() {
           <div style={{ display: 'flex', justifyContent: 'center', padding: '48px' }}>
             <Spinner size={32} />
           </div>
+        ) : !isOwner && view === 'map' ? (
+          <JobsMap
+            posts={filterPostsForView(posts, filters, isOwner)}
+            onSelect={setSelectedPost}
+          />
         ) : (
           <FilteredList
             posts={posts}
@@ -151,6 +161,55 @@ export function MarketplacePage() {
   );
 }
 
+function filterPostsForView(posts: JobPost[], filters: JobPostFilters, isOwner: boolean): JobPost[] {
+  return posts.filter((p) => {
+    if (!isOwner && filters.commune && p.commune !== filters.commune) return false;
+    if (!isOwner && filters.start_date && p.start_date < filters.start_date) return false;
+    return true;
+  });
+}
+
+function ViewToggle({ view, onChange }: { view: 'list' | 'map'; onChange: (v: 'list' | 'map') => void }) {
+  const baseBtn: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '6px 10px',
+    fontSize: '12.5px',
+    fontWeight: 600,
+    border: 'none',
+    background: 'transparent',
+    color: '#6B7280',
+    cursor: 'pointer',
+    borderRadius: '8px',
+    transition: 'background 0.15s, color 0.15s',
+  };
+  const activeBtn: React.CSSProperties = {
+    ...baseBtn,
+    background: '#FFFFFF',
+    color: '#C0395B',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+  };
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        gap: '2px',
+        padding: '3px',
+        background: '#F2F1EF',
+        borderRadius: '10px',
+      }}
+    >
+      <button type="button" style={view === 'list' ? activeBtn : baseBtn} onClick={() => onChange('list')}>
+        <List size={13} /> Lista
+      </button>
+      <button type="button" style={view === 'map' ? activeBtn : baseBtn} onClick={() => onChange('map')}>
+        <MapIcon size={13} /> Mapa
+      </button>
+    </div>
+  );
+}
+
 function FilteredList({
   posts,
   isOwner,
@@ -164,12 +223,7 @@ function FilteredList({
   onCreateClick: () => void;
   onSelect: (p: JobPost) => void;
 }) {
-  // Apply commune filter client-side (Firestore would need composite index)
-  const filtered = posts.filter((p) => {
-    if (!isOwner && filters.commune && p.commune !== filters.commune) return false;
-    if (!isOwner && filters.start_date && p.start_date < filters.start_date) return false;
-    return true;
-  });
+  const filtered = filterPostsForView(posts, filters, isOwner);
 
   if (filtered.length === 0) {
     return <EmptyState isOwner={isOwner} onCreateClick={onCreateClick} />;

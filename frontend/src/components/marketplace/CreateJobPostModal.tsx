@@ -67,6 +67,7 @@ export function CreateJobPostModal({ onClose, onCreated }: { onClose: () => void
     try {
       // Default end_date to start_date if blank
       const end_date = data.end_date || data.start_date;
+      const biz = businesses.find((b) => b.id === data.business_id);
       await createJobPost({
         owner_uid: appUser!.uid,
         business_id: data.business_id,
@@ -84,6 +85,10 @@ export function CreateJobPostModal({ onClose, onCreated }: { onClose: () => void
         commune: data.commune,
         close_reason: null,
         status: 'published',
+        business_name: biz?.business_name ?? '',
+        address: biz?.address ?? '',
+        lat: biz?.lat ?? 0,
+        lng: biz?.lng ?? 0,
       });
       onCreated();
     } catch (e: unknown) {
