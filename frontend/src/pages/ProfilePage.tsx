@@ -3,14 +3,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { Layout } from '../components/layout/Layout';
 import { Card, Badge, Spinner } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input, Select } from '../components/ui/Input';
+import { Input, Select, Textarea } from '../components/ui/Input';
 import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Application, Business, JobPost, Worker } from '../types';
 import { APPLICATION_STATUS_LABEL, BUSINESS_TYPES, type BusinessType, JOB_POST_STATUS_LABEL } from '../types';
-import { Briefcase, DollarSign, MapPin, User as UserIcon, Edit3, Save, X, Calendar, Plus } from 'lucide-react';
+import { Briefcase, DollarSign, MapPin, User as UserIcon, Edit3, Save, X, Calendar, Plus, LogOut } from 'lucide-react';
 import { CHILE_LOCATIONS, getCommunesForRegion } from '../lib/chileLocations';
-import { getOwnerJobPosts, getWorkerApplications } from '../services/jobPosts';
+import { getOwnerJobPosts, getWorkerApplications, withdrawApplication } from '../services/jobPosts';
 import { AddressAutocomplete, EMPTY_ADDRESS, type AddressValue } from '../components/ui/AddressAutocomplete';
 
 export function ProfilePage() {
@@ -643,20 +643,7 @@ function WorkerSection() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {applications.map((app) => (
-              <div key={app.id} style={historyRow}>
-                <div>
-                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#111827', margin: 0 }}>
-                    Publicación {app.job_post_id.slice(0, 10)}…
-                  </p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', color: '#9CA3AF', fontSize: '12px' }}>
-                    <Calendar size={11} />
-                    {app.created_at ? new Date(app.created_at).toLocaleDateString('es-CL') : '—'}
-                  </div>
-                </div>
-                <Badge color={appColors[app.status] ?? 'gray'}>
-                  {APPLICATION_STATUS_LABEL[app.status]}
-                </Badge>
-              </div>
+              <WorkerApplicationRow key={app.id} application={app} onChanged={reload} />
             ))}
           </div>
         )}
@@ -672,6 +659,99 @@ function WorkerSection() {
         ]}
       />
     </>
+  );
+}
+
+function WorkerApplicationRow({
+  application,
+  onChanged,
+}: {
+  application: Application;
+  onChanged: () => Promise<void>;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const canWithdraw = application.status === 'applied';
+  const dateLabel = application.created_at
+    ? new Date(application.created_at).toLocaleDateString('es-CL')
+    : '—';
+
+  async function handleConfirm() {
+    setLoading(true);
+    setError('');
+    try {
+      await withdrawApplication(application.id, reason.trim());
+      await onChanged();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'No se pudo desistir');
+      setLoading(false);
+    }
+  }
+
+  if (confirming) {
+    return (
+      <div style={{ ...historyRow, flexDirection: 'column', alignItems: 'stretch', gap: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <p style={{ fontSize: '13px', fontWeight: 600, color: '#111827', margin: 0 }}>
+            Desistir de la publicación {application.job_post_id.slice(0, 10)}…
+          </p>
+          <Badge color={appColors[application.status] ?? 'gray'}>
+            {APPLICATION_STATUS_LABEL[application.status]}
+          </Badge>
+        </div>
+        <p style={{ fontSize: '12px', color: '#6B7280', margin: 0, lineHeight: 1.5 }}>
+          El Negocio verá que ya no estás disponible para este turno. Esta acción no se puede
+          deshacer.
+        </p>
+        {error && (
+          <div style={{ padding: '8px 12px', borderRadius: '8px', background: '#fee2e2', color: '#991b1b', fontSize: '12px' }}>
+            {error}
+          </div>
+        )}
+        <Textarea
+          label="Motivo (opcional)"
+          placeholder="Cuéntale al Negocio por qué desistes. Ayuda a que mejore sus turnos."
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+        />
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+          <Button variant="secondary" size="sm" onClick={() => { setConfirming(false); setError(''); }} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button variant="danger" size="sm" loading={loading} onClick={handleConfirm}>
+            Confirmar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={historyRow}>
+      <div>
+        <p style={{ fontSize: '13px', fontWeight: 600, color: '#111827', margin: 0 }}>
+          Publicación {application.job_post_id.slice(0, 10)}…
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', color: '#9CA3AF', fontSize: '12px' }}>
+          <Calendar size={11} />
+          {dateLabel}
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Badge color={appColors[application.status] ?? 'gray'}>
+          {APPLICATION_STATUS_LABEL[application.status]}
+        </Badge>
+        {canWithdraw && (
+          <Button variant="secondary" size="sm" onClick={() => setConfirming(true)}>
+            <LogOut size={13} style={{ marginRight: '6px' }} /> Desistir
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
 
