@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Layout } from '../components/layout/Layout';
 import { Card, Badge, Spinner } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Select, Input } from '../components/ui/Input';
 import {
+  getJobPost,
   getPublishedJobPosts,
   getOwnerJobPosts,
   type JobPostFilters,
@@ -27,6 +29,9 @@ export function MarketplacePage() {
   const [showCreate, setShowCreate] = useState(false);
   const [selectedPost, setSelectedPost] = useState<JobPost | null>(null);
   const [view, setView] = useState<'list' | 'map'>('list');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkPostId = searchParams.get('postId');
+  const deepLinkApplicationId = searchParams.get('applicationId') ?? undefined;
 
   const fetchPosts = useCallback(async () => {
     if (!appUser) return;
@@ -47,6 +52,19 @@ export function MarketplacePage() {
   }, [isOwner, appUser, filters]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
+
+  // Si llegamos con ?postId=... (típicamente desde una notificación), abre
+  // el detalle del turno automáticamente.
+  useEffect(() => {
+    if (!deepLinkPostId) return;
+    if (selectedPost?.id === deepLinkPostId) return;
+    let cancelled = false;
+    (async () => {
+      const p = await getJobPost(deepLinkPostId);
+      if (!cancelled && p) setSelectedPost(p);
+    })();
+    return () => { cancelled = true; };
+  }, [deepLinkPostId, selectedPost?.id]);
 
   const occupationOptions = OCCUPATIONS.map((o) => ({ value: o, label: o }));
   const regionOptions = CHILE_LOCATIONS.map((r) => ({ value: r.name, label: r.name }));
@@ -153,8 +171,26 @@ export function MarketplacePage() {
         <JobPostDetailModal
           post={selectedPost}
           isOwner={isOwner}
-          onClose={() => setSelectedPost(null)}
-          onUpdated={() => { setSelectedPost(null); fetchPosts(); }}
+          highlightApplicationId={selectedPost.id === deepLinkPostId ? deepLinkApplicationId : undefined}
+          onClose={() => {
+            setSelectedPost(null);
+            if (deepLinkPostId) {
+              const next = new URLSearchParams(searchParams);
+              next.delete('postId');
+              next.delete('applicationId');
+              setSearchParams(next, { replace: true });
+            }
+          }}
+          onUpdated={() => {
+            setSelectedPost(null);
+            if (deepLinkPostId) {
+              const next = new URLSearchParams(searchParams);
+              next.delete('postId');
+              next.delete('applicationId');
+              setSearchParams(next, { replace: true });
+            }
+            fetchPosts();
+          }}
         />
       )}
     </Layout>
