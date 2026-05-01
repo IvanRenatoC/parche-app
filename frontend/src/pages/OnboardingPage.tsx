@@ -14,6 +14,7 @@ import { db } from '../lib/firebase';
 import { BUSINESS_TYPES, type BusinessType, type UserRole } from '../types';
 import { CHILE_LOCATIONS, getCommunesForRegion } from '../lib/chileLocations';
 import { FullscreenLoader } from '../components/ui/Loader';
+import { AddressAutocomplete, EMPTY_ADDRESS, type AddressValue } from '../components/ui/AddressAutocomplete';
 
 const baseSchema = z.object({
   first_name: z.string().min(2, 'Nombre requerido'),
@@ -169,6 +170,7 @@ function OwnerOnboardingForm({
   const { firebaseUser } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState('');
+  const [address, setAddress] = useState<AddressValue>(EMPTY_ADDRESS);
 
   const {
     register,
@@ -224,10 +226,10 @@ function OwnerOnboardingForm({
           business_name: data.business_name || 'Mi local',
           business_type: (data.business_type as BusinessType) || 'restaurante',
           business_subtype: 'otro',
-          address: '',
-          place_id: '',
-          lat: 0,
-          lng: 0,
+          address: address.address,
+          place_id: address.place_id,
+          lat: address.lat,
+          lng: address.lng,
           region: data.region || '',
           commune: data.commune || '',
           created_at: now,
@@ -307,9 +309,17 @@ function OwnerOnboardingForm({
             {...register('commune')}
           />
 
+          <AddressAutocomplete
+            value={address}
+            onChange={setAddress}
+            label="Dirección exacta del local"
+            hint="Opcional. Selecciona una sugerencia para fijar la ubicación en el mapa."
+            placeholder="Ej: Av. Providencia 1234, Providencia"
+          />
+
           <PendingHint>
-            <strong>Pendientes para más adelante:</strong> dirección con Google Maps, foto del
-            local, documentos y carga masiva de locales.
+            <strong>Pendientes para más adelante:</strong> foto del local, documentos y carga
+            masiva de locales.
           </PendingHint>
 
           <Button type="submit" loading={isSubmitting} size="lg" fullWidth>
