@@ -69,7 +69,10 @@ declare global {
 
 let loaderPromise: Promise<GoogleNs> | null = null;
 
-const RAW_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+// Acepta cualquiera de los dos nombres por compatibilidad con configs previas.
+const RAW_KEY =
+  (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined) ??
+  (import.meta.env.VITE_GOOGLE_MAPS_BROWSER_API_KEY as string | undefined);
 export const GOOGLE_MAPS_API_KEY = RAW_KEY?.trim() || undefined;
 
 let diagnosticPrinted = false;

@@ -4,14 +4,14 @@ import { Layout } from '../components/layout/Layout';
 import { Card, Badge, Spinner } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select } from '../components/ui/Input';
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Application, Business, JobPost, Worker } from '../types';
 import { APPLICATION_STATUS_LABEL, BUSINESS_TYPES, type BusinessType, JOB_POST_STATUS_LABEL } from '../types';
-import { Briefcase, DollarSign, MapPin, User as UserIcon, Edit3, Save, X, Calendar } from 'lucide-react';
+import { Briefcase, DollarSign, MapPin, User as UserIcon, Edit3, Save, X, Calendar, Plus } from 'lucide-react';
 import { CHILE_LOCATIONS, getCommunesForRegion } from '../lib/chileLocations';
 import { getOwnerJobPosts, getWorkerApplications } from '../services/jobPosts';
-import { AddressAutocomplete, type AddressValue } from '../components/ui/AddressAutocomplete';
+import { AddressAutocomplete, EMPTY_ADDRESS, type AddressValue } from '../components/ui/AddressAutocomplete';
 
 export function ProfilePage() {
   const { appUser } = useAuth();
@@ -139,6 +139,7 @@ function OwnerSection() {
   const [posts, setPosts] = useState<JobPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [creatingNew, setCreatingNew] = useState(false);
 
   const reload = useCallback(async () => {
     if (!appUser) return;
@@ -178,14 +179,30 @@ function OwnerSection() {
       <Card>
         <SectionHeader
           title="Mis locales"
-          subtitle="Tus locales registrados. Puedes editar sus datos básicos."
+          subtitle="Tus locales registrados. Puedes editar sus datos básicos o agregar otro."
+          right={
+            !creatingNew && (
+              <Button size="sm" onClick={() => setCreatingNew(true)}>
+                <Plus size={14} style={{ marginRight: '6px' }} /> Agregar local
+              </Button>
+            )
+          }
         />
-        {businesses.length === 0 ? (
+        {creatingNew && appUser && (
+          <div style={{ marginTop: '14px' }}>
+            <NewBusinessForm
+              ownerUid={appUser.uid}
+              onCancel={() => setCreatingNew(false)}
+              onCreated={async () => { setCreatingNew(false); await reload(); }}
+            />
+          </div>
+        )}
+        {businesses.length === 0 && !creatingNew ? (
           <p style={{ fontSize: '14px', color: '#9CA3AF', padding: '12px 0' }}>
-            No tienes locales registrados. Crea uno desde el flujo de publicación.
+            No tienes locales registrados. Usa "Agregar local" para crear el primero.
           </p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        ) : businesses.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: creatingNew ? '14px' : 0 }}>
             {businesses.map((biz) => (
               <BusinessRow
                 key={biz.id}
@@ -197,7 +214,7 @@ function OwnerSection() {
               />
             ))}
           </div>
-        )}
+        ) : null}
       </Card>
 
       <Card>
@@ -239,6 +256,113 @@ function OwnerSection() {
         ]}
       />
     </>
+  );
+}
+
+function NewBusinessForm({
+  ownerUid,
+  onCancel,
+  onCreated,
+}: {
+  ownerUid: string;
+  onCancel: () => void;
+  onCreated: () => Promise<void>;
+}) {
+  const [name, setName] = useState('');
+  const [rut, setRut] = useState('');
+  const [type, setType] = useState<string>('restaurante');
+  const [region, setRegion] = useState('');
+  const [commune, setCommune] = useState('');
+  const [address, setAddress] = useState<AddressValue>(EMPTY_ADDRESS);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const regionOptions = CHILE_LOCATIONS.map((r) => ({ value: r.name, label: r.name }));
+  const communeOptions = getCommunesForRegion(region).map((c) => ({ value: c, label: c }));
+  const typeOptions = Object.entries(BUSINESS_TYPES).map(([v, l]) => ({ value: v, label: l }));
+
+  async function save() {
+    setError('');
+    if (!name.trim()) {
+      setError('Ingresa el nombre del local');
+      return;
+    }
+    if (!rut.trim() || rut.trim().length < 8) {
+      setError('Ingresa el RUT del local (ej: 76.123.456-7)');
+      return;
+    }
+    setSaving(true);
+    try {
+      const now = serverTimestamp();
+      await addDoc(collection(db, 'businesses'), {
+        owner_uid: ownerUid,
+        business_rut: rut,
+        business_name: name,
+        business_type: type as BusinessType,
+        business_subtype: 'otro',
+        address: address.address,
+        place_id: address.place_id,
+        lat: address.lat,
+        lng: address.lng,
+        region,
+        commune,
+        created_at: now,
+        updated_at: now,
+      });
+      await onCreated();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'No se pudo crear el local');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ ...businessRowStyle, flexDirection: 'column', alignItems: 'stretch', gap: '12px' }}>
+      <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>
+        Nuevo local — completa los datos básicos. La dirección con Google Maps es opcional pero
+        recomendada.
+      </p>
+      {error && (
+        <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fee2e2', color: '#991b1b', fontSize: '13px' }}>
+          {error}
+        </div>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+        <Input label="Nombre del local" value={name} onChange={(e) => setName(e.target.value)} placeholder="Bar Parche Centro" />
+        <Input label="RUT del local" value={rut} onChange={(e) => setRut(e.target.value)} placeholder="76.123.456-7" />
+        <Select label="Tipo de local" options={typeOptions} value={type} onChange={(e) => setType(e.target.value)} />
+        <Select
+          label="Región"
+          options={regionOptions}
+          placeholder="Seleccionar"
+          value={region}
+          onChange={(e) => { setRegion(e.target.value); setCommune(''); }}
+        />
+        <Select
+          label="Comuna"
+          options={communeOptions}
+          placeholder={region ? 'Seleccionar' : 'Elige primero una región'}
+          disabled={!region}
+          value={commune}
+          onChange={(e) => setCommune(e.target.value)}
+        />
+      </div>
+      <AddressAutocomplete
+        value={address}
+        onChange={setAddress}
+        label="Dirección exacta del local"
+        hint="Selecciona una sugerencia para fijar la ubicación en el mapa."
+      />
+      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+        <Button variant="secondary" size="sm" onClick={onCancel} disabled={saving}>
+          <X size={13} style={{ marginRight: '6px' }} /> Cancelar
+        </Button>
+        <Button size="sm" loading={saving} onClick={save}>
+          <Save size={13} style={{ marginRight: '6px' }} /> Crear local
+        </Button>
+      </div>
+    </div>
   );
 }
 
