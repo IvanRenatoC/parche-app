@@ -69,10 +69,31 @@ declare global {
 
 let loaderPromise: Promise<GoogleNs> | null = null;
 
-export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+const RAW_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+export const GOOGLE_MAPS_API_KEY = RAW_KEY?.trim() || undefined;
+
+let diagnosticPrinted = false;
+function printDiagnosticOnce(): void {
+  if (diagnosticPrinted) return;
+  diagnosticPrinted = true;
+  const viteEnvKeys = Object.keys(import.meta.env)
+    .filter((k) => k.startsWith('VITE_'))
+    .sort();
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[Parche · Google Maps] VITE_GOOGLE_MAPS_API_KEY no está definida.\n' +
+      `  → mode: ${import.meta.env.MODE}\n` +
+      `  → VITE_ vars cargadas: ${viteEnvKeys.join(', ') || '(ninguna)'}\n` +
+      '  → Si la agregaste recién a frontend/.env.local, reinicia el dev server (matar todos los procesos `vite` y volver a `npm run dev`).'
+  );
+}
 
 export function isGoogleMapsConfigured(): boolean {
-  return Boolean(GOOGLE_MAPS_API_KEY);
+  if (!GOOGLE_MAPS_API_KEY) {
+    if (typeof window !== 'undefined') printDiagnosticOnce();
+    return false;
+  }
+  return true;
 }
 
 export function loadGoogleMaps(): Promise<GoogleNs> {
