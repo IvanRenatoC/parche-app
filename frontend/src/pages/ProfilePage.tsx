@@ -11,6 +11,7 @@ import { APPLICATION_STATUS_LABEL, BUSINESS_TYPES, type BusinessType, JOB_POST_S
 import { Briefcase, DollarSign, MapPin, User as UserIcon, Edit3, Save, X, Calendar } from 'lucide-react';
 import { CHILE_LOCATIONS, getCommunesForRegion } from '../lib/chileLocations';
 import { getOwnerJobPosts, getWorkerApplications } from '../services/jobPosts';
+import { AddressAutocomplete, type AddressValue } from '../components/ui/AddressAutocomplete';
 
 export function ProfilePage() {
   const { appUser } = useAuth();
@@ -234,7 +235,6 @@ function OwnerSection() {
           'Foto de carnet o pasaporte de la persona',
           'Foto del local',
           'Documentos del local',
-          'Dirección con Google Maps',
           'Calificaciones recibidas',
         ]}
       />
@@ -260,6 +260,12 @@ function BusinessRow({
   const [type, setType] = useState<string>(business.business_type);
   const [region, setRegion] = useState(business.region);
   const [commune, setCommune] = useState(business.commune);
+  const [address, setAddress] = useState<AddressValue>({
+    address: business.address ?? '',
+    place_id: business.place_id ?? '',
+    lat: business.lat ?? 0,
+    lng: business.lng ?? 0,
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -270,6 +276,12 @@ function BusinessRow({
       setType(business.business_type);
       setRegion(business.region);
       setCommune(business.commune);
+      setAddress({
+        address: business.address ?? '',
+        place_id: business.place_id ?? '',
+        lat: business.lat ?? 0,
+        lng: business.lng ?? 0,
+      });
       setError('');
     }
   }, [isEditing, business]);
@@ -288,6 +300,10 @@ function BusinessRow({
         business_type: type as BusinessType,
         region,
         commune,
+        address: address.address,
+        place_id: address.place_id,
+        lat: address.lat,
+        lng: address.lng,
         updated_at: serverTimestamp(),
       });
       await onSaved();
@@ -309,6 +325,11 @@ function BusinessRow({
           {(business.region || business.commune) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', color: '#9CA3AF', fontSize: '12px' }}>
               <MapPin size={11} /> {business.commune || '—'}, {business.region || '—'}
+            </div>
+          )}
+          {business.address && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', color: '#6B7280', fontSize: '12px' }}>
+              <MapPin size={11} color="#C0395B" /> {business.address}
             </div>
           )}
         </div>
@@ -346,6 +367,12 @@ function BusinessRow({
           onChange={(e) => setCommune(e.target.value)}
         />
       </div>
+      <AddressAutocomplete
+        value={address}
+        onChange={setAddress}
+        label="Dirección exacta del local"
+        hint="Selecciona una sugerencia para fijar la ubicación en el mapa."
+      />
       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
         <Button variant="secondary" size="sm" onClick={onCancel}>Cancelar</Button>
         <Button size="sm" loading={saving} onClick={save}>Guardar</Button>
