@@ -94,7 +94,8 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
     setActionLoading('apply');
     setError('');
     try {
-      await applyToJobPost(post.id, post.owner_uid, appUser.uid);
+      const workerLabel = [appUser.first_name, appUser.last_name].filter(Boolean).join(' ') || undefined;
+      await applyToJobPost(post, appUser.uid, workerLabel);
       setInfo('¡Postulación enviada! El Negocio recibirá tu interés.');
       await loadApplications();
     } catch (e: unknown) {
@@ -105,10 +106,11 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
   }
 
   async function handleWithdraw() {
-    if (!myApplication) return;
+    if (!myApplication || !appUser) return;
     setActionLoading('withdraw');
     try {
-      await withdrawApplication(myApplication.id, withdrawReason);
+      const workerLabel = [appUser.first_name, appUser.last_name].filter(Boolean).join(' ') || undefined;
+      await withdrawApplication(myApplication, withdrawReason, post.title, workerLabel);
       setInfo('Retiraste tu postulación.');
       setShowWithdraw(false);
       await loadApplications();

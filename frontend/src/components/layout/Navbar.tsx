@@ -1,13 +1,15 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Bell, LogOut, User, Briefcase, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { getNotifications, isNotificationUnread } from '../../services/notifications';
 
 export function Navbar() {
   const { appUser, logOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -19,6 +21,27 @@ export function Navbar() {
     if (menuOpen) document.addEventListener('mousedown', onClickOutside);
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, [menuOpen]);
+
+  const refreshUnread = useCallback(async () => {
+    if (!appUser) {
+      setUnreadCount(0);
+      return;
+    }
+    try {
+      const list = await getNotifications(appUser.uid, appUser.role);
+      setUnreadCount(list.filter((n) => isNotificationUnread(n, appUser.uid)).length);
+    } catch {
+      // Silenciar — la campanita queda en 0 si falla.
+    }
+  }, [appUser]);
+
+  // Refresca al montar, al cambiar de ruta (por si visitaron /notifications),
+  // y cada 60s mientras la pestaña esté abierta.
+  useEffect(() => {
+    refreshUnread();
+    const id = setInterval(refreshUnread, 60_000);
+    return () => clearInterval(id);
+  }, [refreshUnread, location.pathname]);
 
   async function handleLogout() {
     await logOut();
@@ -72,8 +95,9 @@ export function Navbar() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <Link
             to="/notifications"
-            aria-label="Notificaciones"
+            aria-label={unreadCount > 0 ? `Notificaciones (${unreadCount} sin leer)` : 'Notificaciones'}
             style={{
+              position: 'relative',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -98,6 +122,30 @@ export function Navbar() {
             }}
           >
             <Bell size={17} />
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '4px',
+                  right: '4px',
+                  minWidth: '16px',
+                  height: '16px',
+                  padding: '0 4px',
+                  borderRadius: '999px',
+                  background: '#C0395B',
+                  color: '#FFFFFF',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid #FFFFFF',
+                  lineHeight: 1,
+                }}
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </Link>
 
           <div ref={menuRef} style={{ position: 'relative' }}>

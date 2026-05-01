@@ -669,6 +669,7 @@ function WorkerApplicationRow({
   application: Application;
   onChanged: () => Promise<void>;
 }) {
+  const { appUser } = useAuth();
   const [confirming, setConfirming] = useState(false);
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
@@ -683,7 +684,10 @@ function WorkerApplicationRow({
     setLoading(true);
     setError('');
     try {
-      await withdrawApplication(application.id, reason.trim());
+      const workerLabel = appUser
+        ? [appUser.first_name, appUser.last_name].filter(Boolean).join(' ') || undefined
+        : undefined;
+      await withdrawApplication(application, reason.trim(), undefined, workerLabel);
       await onChanged();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'No se pudo desistir');

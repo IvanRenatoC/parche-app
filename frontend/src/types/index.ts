@@ -14,8 +14,10 @@ export type NotificationType =
   | 'application_not_selected'
   | 'application_accepted'
   | 'application_rejected'
+  | 'application_withdrawn'
   | 'job_post_filled'
   | 'new_application'
+  | 'new_job_post'
   | 'general';
 
 export type BusinessType =
@@ -153,13 +155,19 @@ export interface Rating {
 
 export interface Notification {
   id: string;
+  /** Direct notification target. Empty string for role-based broadcasts. */
   recipient_uid: string;
+  /** Role-based broadcast target. Empty string for direct notifications. */
+  recipient_role: UserRole | '';
   type: NotificationType;
   title: string;
   message: string;
   related_job_post_id: string | null;
   related_application_id: string | null;
+  /** True for direct notifications when recipient has read it. */
   read: boolean;
+  /** UIDs of users that have read this broadcast notification. */
+  read_by: string[];
   created_at: string;
 }
 
