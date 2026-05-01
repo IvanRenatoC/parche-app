@@ -127,6 +127,13 @@ Publicación de turno temporal.
   commune: string;
   status: "draft" | "published" | "closed" | "cancelled" | "filled" | "expired";
   close_reason: string | null;
+  // Datos denormalizados desde Business para que los workers puedan
+  // renderizar la publicación (incluido el mapa) sin permisos sobre
+  // la colección 'businesses'. Se copian al crear el job post.
+  business_name?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
   created_at: Timestamp;
   updated_at: Timestamp;
 }
@@ -205,20 +212,44 @@ Calificaciones post-turno.
 
 ## notifications/{notificationId}
 
-Notificaciones internas del sistema.
+Notificaciones internas del sistema. Soporta dos modos:
+
+- **Directa**: dirigida a un usuario concreto (`recipient_uid` no vacío,
+  `recipient_role = ""`). Se marca como leída con el flag `read`.
+- **Broadcast por rol**: dirigida a todos los usuarios de un rol
+  (`recipient_uid = ""`, `recipient_role = "worker" | "owner"`). Cada
+  usuario que la lee se agrega al array `read_by`.
 
 ```typescript
 {
-  recipient_uid: string;
-  type: "application_not_selected" | "application_accepted" | "application_rejected" | "job_post_filled" | "new_application" | "general";
+  recipient_uid: string;          // "" si es broadcast
+  recipient_role: "worker" | "owner" | "";  // "" si es directa
+  type:
+    | "application_not_selected"
+    | "application_accepted"
+    | "application_rejected"
+    | "application_withdrawn"   // owner: un postulante desistió
+    | "job_post_filled"
+    | "new_application"          // owner: un worker se postuló
+    | "new_job_post"             // workers (broadcast): se publicó un turno
+    | "general";
   title: string;
   message: string;
   related_job_post_id: string | null;
   related_application_id: string | null;
-  read: boolean;
+  read: boolean;                  // usado en notificaciones directas
+  read_by: string[];              // UIDs que ya marcaron como leída la broadcast
   created_at: Timestamp;
 }
 ```
+
+**Eventos que disparan creación (escritos desde el cliente):**
+
+| Evento | Tipo | Destinatario | Side disparador |
+|---|---|---|---|
+| Worker postula | `new_application` (directa) | `recipient_uid = post.owner_uid` | `applyToJobPost()` en frontend |
+| Worker desiste | `application_withdrawn` (directa) | `recipient_uid = application.owner_uid` | `withdrawApplication()` en frontend |
+| Owner publica turno | `new_job_post` (broadcast) | `recipient_role = "worker"` | `createJobPost()` en frontend |
 
 ---
 
@@ -262,6 +293,7 @@ job_posts: occupation ASC, status ASC, start_date ASC
 job_posts: owner_uid ASC, status ASC
 applications: job_post_id ASC, status ASC
 applications: worker_uid ASC, status ASC, created_at DESC
-notifications: recipient_uid ASC, read ASC, created_at DESC
+notifications: recipient_uid ASC, created_at DESC
+notifications: recipient_role ASC, created_at DESC
 audit_logs: actor_uid ASC, created_at DESC
 ```

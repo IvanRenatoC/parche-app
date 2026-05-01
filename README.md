@@ -28,11 +28,11 @@ El flujo central es: Negocio publica un turno → Trabajadores postulan → Nego
 | Firebase Auth (Email/Password) | ✅ Activo (requiere habilitarlo en consola) |
 | Firestore | ✅ Funcional en local (reglas en test mode) |
 | Flujo crítico de aceptación | ✅ Implementado en backend |
-| Notificaciones internas | ✅ Funcionales |
+| Notificaciones internas | ✅ Funcionales (eventos: postulación, desistimiento, nuevo turno; con campanita y badge en navbar) |
 | Cloud Run (deploy backend) | ⏳ Pendiente |
 | Firebase Hosting (deploy frontend) | ⏳ Pendiente |
 | Índices Firestore compuestos | ⏳ Pendiente deploy (workaround: orden en cliente) |
-| Google Maps integrado | ⏳ Pendiente |
+| Google Maps integrado | ✅ Address Autocomplete (locales) + mapa de turnos en marketplace |
 | SendGrid emails reales | ⏳ Pendiente (stub activo en dev) |
 | CI/CD pipeline | ⏳ Pendiente |
 
@@ -54,7 +54,7 @@ El flujo central es: Negocio publica un turno → Trabajadores postulan → Nego
 | Email | SendGrid (`EMAIL_PROVIDER=sendgrid`) / stub en dev | sendgrid 6 |
 | Backend deploy | Cloud Run — GCP `us-west1` | Pendiente |
 | Frontend deploy | Firebase Hosting | Pendiente |
-| Mapas | Google Maps Platform (pendiente integración) | — |
+| Mapas | Google Maps Platform (Maps JS + Places API) | Activo en frontend |
 
 ---
 
@@ -247,6 +247,11 @@ Owner abre JobPostDetailModal → click "Aceptar" en un postulante
         7. Si count >= required_workers → marca job_post como 'filled'
         8. Marca las demás postulaciones pendientes como 'not_selected'
         9. Crea notificación interna para cada worker no seleccionado
+
+Notificaciones adicionales (escritas desde el cliente, sin pasar por el backend):
+- Worker postula → owner recibe `new_application`
+- Worker desiste → owner recibe `application_withdrawn`
+- Owner publica turno → workers reciben `new_job_post` (broadcast por rol)
         10. Envía email si EMAIL_PROVIDER=sendgrid
         11. Escribe en audit_logs
 ```
@@ -285,7 +290,9 @@ VITE_FIREBASE_PROJECT_ID=ml-lab-ivan
 VITE_FIREBASE_STORAGE_BUCKET=ml-lab-ivan.firebasestorage.app
 VITE_FIREBASE_MESSAGING_SENDER_ID=<Firebase Console>
 VITE_FIREBASE_APP_ID=<Firebase Console>
-VITE_GOOGLE_MAPS_BROWSER_API_KEY=
+VITE_GOOGLE_MAPS_BROWSER_API_KEY=     # API key de Google Cloud (alias: VITE_GOOGLE_MAPS_API_KEY)
+                                       # APIs requeridas: Maps JavaScript API + Places API
+                                       # Restringir por HTTP referrer a http://localhost:5173/*
 ```
 
 ### `backend/.env` (no se versiona)
@@ -408,7 +415,7 @@ Las queries con múltiples cláusulas (`WHERE + ORDER BY`) requieren índices co
 - [ ] Deploy frontend → Firebase Hosting
 - [ ] Deplegar índices Firestore: `firebase deploy --only firestore:indexes`
 - [ ] Activar reglas Firestore de producción: `firebase deploy --only firestore:rules`
-- [ ] Integrar Google Maps en formulario de publicación y perfil de local
+- [x] Integrar Google Maps (autocomplete de dirección en locales y mapa de turnos en marketplace)
 - [ ] Configurar SendGrid (`EMAIL_PROVIDER=sendgrid`)
 - [ ] Configurar dominio personalizado
 - [ ] CI/CD pipeline (GitHub Actions)

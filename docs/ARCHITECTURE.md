@@ -344,18 +344,31 @@ El servicio `application_service.accept_application()` ejecuta **11 pasos en sec
 ```
 
 #### `notifications/{id}` (auto-ID)
+
+Soporta dos modos: **directa** (`recipient_uid` no vacío) y **broadcast por rol**
+(`recipient_role` no vacío). Las directas usan `read`; las broadcast usan
+`read_by[]` para tracking individual.
+
 ```json
 {
-  "recipient_uid": "string",
-  "type": "application_not_selected | application_accepted | new_application | job_post_filled | general",
+  "recipient_uid": "string | ''",
+  "recipient_role": "worker | owner | ''",
+  "type": "application_not_selected | application_accepted | application_rejected | application_withdrawn | new_application | new_job_post | job_post_filled | general",
   "title": "string",
   "message": "string",
   "related_job_post_id": "string | null",
   "related_application_id": "string | null",
   "read": false,
+  "read_by": [],
   "created_at": "timestamp"
 }
 ```
+
+**Eventos que crean notificaciones (desde el cliente):**
+
+- `applyToJobPost()` → directa al owner: type `new_application`.
+- `withdrawApplication()` → directa al owner: type `application_withdrawn`.
+- `createJobPost()` → broadcast a workers: type `new_job_post`.
 
 #### `audit_logs/{id}` (auto-ID)
 Solo escritura desde el backend (Admin SDK). Bloqueado para lectura/escritura en reglas de seguridad.
@@ -379,7 +392,10 @@ Principios generales:
 - `businesses/{id}`: el owner puede ver y editar sus propios locales.
 - `job_posts/{id}`: workers ven los que están `published`; owner ve los propios.
 - `applications/{id}`: worker ve las suyas; owner ve las de sus publicaciones.
-- `notifications/{id}`: el destinatario puede leer y marcar como leída.
+- `notifications/{id}`: lectura para destinatario (directa) o usuarios del rol
+  (broadcast). Cualquier usuario autenticado puede crear notificaciones para
+  otros (con `recipient_uid != self`); update solo permite cambios en
+  `read`/`read_by`. Detalle en `docs/SECURITY_RULES.md`.
 - `audit_logs/{id}`: nadie puede leer ni escribir (solo Admin SDK).
 
 ### 3.3 Índices Firestore
@@ -485,6 +501,42 @@ Focus cambia borde a `#ad4b7e` (accent) con `onFocus`/`onBlur` inline.
 `Card`: fondo blanco, borde `#ECE7DD`, border-radius 14px. Padding configurable: `none | sm | md | lg`.
 `Badge`: colores predefinidos (`green`, `amber`, `pink`, `red`, `blue`, `gray`).
 `Spinner`: SVG animado con CSS `@keyframes spin`.
+
+---
+
+## 7B. Integración Google Maps
+
+### 7B.1 Loader compartido (`lib/googleMaps.ts`)
+
+Un único loader carga el SDK `maps.googleapis.com/maps/api/js?libraries=places`
+de forma diferida y cachea el promise para no insertar el script más de una vez.
+Las tipos se declaran inline (sin `@types/google.maps`) para evitar dependencias
+extra. Soporta dos nombres de variable de entorno por compatibilidad:
+
+- `VITE_GOOGLE_MAPS_API_KEY` (preferido)
+- `VITE_GOOGLE_MAPS_BROWSER_API_KEY` (legacy / convención de Firebase Console)
+
+Si la key falta, el loader registra un `console.warn` con diagnóstico de qué
+variables `VITE_*` sí cargó Vite, para ayudar a destrabar issues comunes
+(.env.local sin recargar el dev server, etc.).
+
+### 7B.2 Componentes que la usan
+
+- `components/ui/AddressAutocomplete.tsx` — input con Places Autocomplete
+  (restringido a Chile) + mini-mapa con marker para confirmar la selección.
+  Usado en el onboarding del owner y en la edición/creación de locales.
+- `components/marketplace/JobsMap.tsx` — mapa con un marker por cada turno
+  publicado que tenga `lat`/`lng`. Centrado con `navigator.geolocation` del
+  worker (fallback a Plaza de Armas, Santiago). Click en marker abre el
+  detalle del turno.
+
+### 7B.3 Denormalización de ubicación
+
+Los workers no tienen permiso de lectura sobre la colección `businesses`
+(las reglas restringen a `owner_uid`). Para que el mapa pueda mostrar la
+ubicación de los turnos, `createJobPost()` copia `business_name`, `address`,
+`lat` y `lng` desde el business seleccionado al documento `job_posts`.
+Posts antiguos sin estos campos no aparecen en el mapa pero sí en la lista.
 
 ---
 

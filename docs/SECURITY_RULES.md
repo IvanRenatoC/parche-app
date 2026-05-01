@@ -61,9 +61,24 @@ applications/{applicationId}:
          || (auth.uid == resource.data.owner_uid && update is reject)
 
 notifications/{notificationId}:
+  # Modo dual: notificaciones directas (recipient_uid) o broadcast por rol (recipient_role).
   read: resource.data.recipient_uid == auth.uid
-  write: false  # Solo el backend puede crear/actualizar
-  update: auth.uid == resource.data.recipient_uid && only "read" field changes
+       || (resource.data.recipient_role != "" && resource.data.recipient_role == userRole)
+  create: auth.uid != null
+         && request.resource.data.recipient_uid is string
+         && request.resource.data.recipient_role is string
+         && request.resource.data.recipient_uid != auth.uid
+  update: (recipient_uid == auth.uid OR recipient_role == userRole)
+         && only ["read", "read_by"] fields change
+
+# Por qué se permite el create desde el cliente:
+# - Worker → owner: cuando el worker postula o desiste, escribe la notificación
+#   directa al owner_uid del job_post (que el cliente conoce).
+# - Owner → workers: al publicar un turno, el owner crea UNA notificación
+#   broadcast con recipient_role="worker"; cada worker la marca como leída
+#   agregándose al array read_by (sin necesidad de fan-out por documento).
+# Esto evita exponer la colección 'users' o 'workers' (ambos tienen PII)
+# para listar destinatarios.
 
 audit_logs/{logId}:
   read: false  # Solo administradores backend
