@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -17,7 +17,7 @@ import type { JobPost, Application, User as AppUser, Worker } from '../../types'
 import { APPLICATION_STATUS_LABEL, JOB_POST_STATUS_LABEL } from '../../types';
 import {
   MapPin, Calendar, Clock, Users, DollarSign, Briefcase,
-  CheckCircle, XCircle, Check, X
+  CheckCircle, XCircle, Check, X, ChevronDown, ChevronUp, Mail, Globe, IdCard,
 } from 'lucide-react';
 
 type EnrichedApplication = Application & { worker?: Worker & { user?: AppUser } };
@@ -25,11 +25,14 @@ type EnrichedApplication = Application & { worker?: Worker & { user?: AppUser } 
 interface Props {
   post: JobPost;
   isOwner: boolean;
+  /** ID de la postulación a expandir automáticamente (típicamente
+   * proveniente de una deep link desde una notificación). */
+  highlightApplicationId?: string;
   onClose: () => void;
   onUpdated: () => void;
 }
 
-export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props) {
+export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onClose, onUpdated }: Props) {
   const { appUser } = useAuth();
   const [applications, setApplications] = useState<EnrichedApplication[]>([]);
   const [loadingApps, setLoadingApps] = useState(false);
@@ -288,6 +291,8 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
                       canAccept={post.status === 'published' && app.status === 'applied' && post.accepted_workers_count < post.required_workers}
                       onAccept={() => handleAcceptWorker(app)}
                       loading={actionLoading === `accept_${app.id}`}
+                      defaultExpanded={highlightApplicationId === app.id}
+                      highlight={highlightApplicationId === app.id}
                     />
                   ))}
                 </div>
@@ -305,12 +310,26 @@ function ApplicationRow({
   canAccept,
   onAccept,
   loading,
+  defaultExpanded = false,
+  highlight = false,
 }: {
   application: EnrichedApplication;
   canAccept: boolean;
   onAccept: () => void;
   loading: boolean;
+  defaultExpanded?: boolean;
+  highlight?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  // Si llegamos por deep link, hacer scroll al postulante destacado.
+  useEffect(() => {
+    if (highlight && rowRef.current) {
+      rowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlight]);
+
   const statusIcon: Record<string, React.ReactNode> = {
     accepted: <CheckCircle size={14} color="#22C55E" />,
     rejected: <XCircle size={14} color="#ef4444" />,
@@ -321,45 +340,154 @@ function ApplicationRow({
   };
 
   const u = application.worker?.user;
+  const w = application.worker;
   const displayName = u
     ? `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() || u.email
     : `Trabajador ${application.worker_uid.slice(0, 6)}…`;
   const initials = (u?.first_name?.[0] ?? u?.email?.[0] ?? 'T').toUpperCase();
-  const occupation = application.worker?.occupations?.[0];
+  const primaryOccupation = w?.occupations?.[0];
+  const otherOccupations = w?.occupations?.slice(1) ?? [];
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '12px 14px', borderRadius: '12px', background: '#F7F4EF', border: '1px solid #ECE7DD',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div style={{
-          width: '40px', height: '40px', borderRadius: '50%', background: '#C0395B',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '14px', fontWeight: 700, color: '#FFFFFF',
-        }}>
-          {initials}
-        </div>
-        <div>
-          <p style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>{displayName}</p>
-          {occupation && (
-            <p style={{ fontSize: '12px', color: '#6B7280', margin: '2px 0 0' }}>
-              {occupation.name} · {occupation.years_experience} años
-            </p>
-          )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-            {statusIcon[application.status]}
-            <Badge color={appColors[application.status] ?? 'gray'}>
-              {APPLICATION_STATUS_LABEL[application.status]}
-            </Badge>
+    <div
+      ref={rowRef}
+      style={{
+        padding: '12px 14px',
+        borderRadius: '12px',
+        background: highlight ? '#FFF6FA' : '#F7F4EF',
+        border: highlight ? '1.5px solid #C0395B' : '1px solid #ECE7DD',
+        boxShadow: highlight ? '0 0 0 4px rgba(192, 57, 91, 0.08)' : 'none',
+        transition: 'background 0.15s, border-color 0.15s',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+          <div style={{
+            width: '40px', height: '40px', borderRadius: '50%', background: '#C0395B',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '14px', fontWeight: 700, color: '#FFFFFF', flexShrink: 0,
+          }}>
+            {initials}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>{displayName}</p>
+            {primaryOccupation && (
+              <p style={{ fontSize: '12px', color: '#6B7280', margin: '2px 0 0' }}>
+                {primaryOccupation.name} · {primaryOccupation.years_experience} años
+              </p>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+              {statusIcon[application.status]}
+              <Badge color={appColors[application.status] ?? 'gray'}>
+                {APPLICATION_STATUS_LABEL[application.status]}
+              </Badge>
+            </div>
           </div>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-label={expanded ? 'Ocultar resumen' : 'Ver resumen'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '6px 10px',
+              borderRadius: '8px',
+              border: '1px solid #E8E5E0',
+              background: '#FFFFFF',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#6B7280',
+              cursor: 'pointer',
+            }}
+          >
+            {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            {expanded ? 'Ocultar' : 'Ver perfil'}
+          </button>
+          {canAccept && (
+            <Button size="sm" variant="primary" loading={loading} onClick={onAccept}>
+              <Check size={14} style={{ marginRight: '4px' }} /> Aceptar
+            </Button>
+          )}
+        </div>
       </div>
-      {canAccept && (
-        <Button size="sm" variant="primary" loading={loading} onClick={onAccept}>
-          <Check size={14} style={{ marginRight: '4px' }} /> Aceptar
-        </Button>
+
+      {expanded && (
+        <div
+          style={{
+            marginTop: '12px',
+            paddingTop: '12px',
+            borderTop: '1px dashed #E8E5E0',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '12px',
+          }}
+        >
+          {u?.email && (
+            <DetailField icon={<Mail size={12} />} label="Email">{u.email}</DetailField>
+          )}
+          {u?.rut && (
+            <DetailField icon={<IdCard size={12} />} label="RUT">{u.rut}</DetailField>
+          )}
+          {w?.nationality && (
+            <DetailField icon={<Globe size={12} />} label="Nacionalidad">{w.nationality}</DetailField>
+          )}
+          {primaryOccupation && (
+            <DetailField icon={<Briefcase size={12} />} label="Oficio principal">
+              {primaryOccupation.name} ({primaryOccupation.years_experience} años)
+            </DetailField>
+          )}
+          {otherOccupations.length > 0 && (
+            <DetailField icon={<Briefcase size={12} />} label="Otros oficios">
+              {otherOccupations.map((o) => `${o.name} (${o.years_experience}a)`).join(', ')}
+            </DetailField>
+          )}
+          {application.withdraw_reason && (
+            <DetailField icon={<XCircle size={12} />} label="Motivo del desistimiento">
+              {application.withdraw_reason}
+            </DetailField>
+          )}
+          {!u && !w && (
+            <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>
+              No pudimos cargar más detalles del postulante.
+            </p>
+          )}
+        </div>
       )}
+    </div>
+  );
+}
+
+function DetailField({
+  icon,
+  label,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          color: '#9CA3AF',
+          fontSize: '10.5px',
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+        }}
+      >
+        {icon} {label}
+      </div>
+      <span style={{ fontSize: '13px', color: '#111827', fontWeight: 500, wordBreak: 'break-word' }}>
+        {children}
+      </span>
     </div>
   );
 }

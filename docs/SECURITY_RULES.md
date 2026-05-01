@@ -15,9 +15,8 @@
 - Puede leer/escribir sus propios `businesses`
 - Puede crear/editar/cerrar sus propios `job_posts`
 - Puede leer `applications` de sus propias publicaciones
-- NO puede ver perfiles de otros owners
-- NO puede ver workers que no postularon a sus publicaciones
-- NO puede editar el perfil de un worker
+- Puede leer el perfil (`users` + `workers`) del postulante para mostrar
+  el resumen en el modal. **No** puede modificarlo.
 - NO puede aceptar/rechazar en publicaciones ajenas
 
 ### Worker
@@ -25,9 +24,17 @@
 - Puede leer `job_posts` en estado `published`
 - Puede crear/leer sus propias `applications`
 - Puede retirar sus propias postulaciones
-- NO puede ver perfiles de otros workers
 - NO puede editar publicaciones
 - NO puede ver postulaciones de otros workers
+
+### Trade-off MVP en lectura de perfiles
+
+`users` y `workers` permiten read a cualquier usuario autenticado. Esto
+expone email/RUT/oficios/nacionalidad pero es necesario para que el owner
+vea el resumen del postulante (sin ir por backend). Documentos sensibles
+(foto de carnet, certificados) viven en Storage con reglas más estrictas.
+Cuando se incorpore un backend que sirva los applications enriquecidos,
+estos rules pueden volver a `if isOwner(uid)`.
 
 ## Reglas Firestore (conceptuales)
 
@@ -35,7 +42,7 @@ Las reglas reales están en `firebase/firestore.rules`.
 
 ```
 users/{uid}:
-  read: auth.uid == uid
+  read: auth != null            # MVP: cualquier autenticado para mostrar perfil
   write: auth.uid == uid
 
 owners/{uid}:
@@ -43,7 +50,7 @@ owners/{uid}:
   write: auth.uid == uid
 
 workers/{uid}:
-  read: auth.uid == uid
+  read: auth != null            # MVP: cualquier autenticado para resumen postulante
   write: auth.uid == uid
 
 businesses/{businessId}:

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Layout } from '../components/layout/Layout';
 import { Card, Spinner } from '../components/ui/Card';
@@ -10,10 +11,11 @@ import {
   markNotificationRead,
 } from '../services/notifications';
 import type { Notification } from '../types';
-import { Bell, CheckCheck } from 'lucide-react';
+import { Bell, CheckCheck, ChevronRight } from 'lucide-react';
 
 export function NotificationsPage() {
   const { appUser } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingAll, setMarkingAll] = useState(false);
@@ -51,6 +53,21 @@ export function NotificationsPage() {
           : x
       )
     );
+  }
+
+  function handleOpen(n: Notification) {
+    if (appUser && isNotificationUnread(n, appUser.uid)) {
+      // Marcar como leída sin esperar (navegamos igual).
+      void handleMarkRead(n);
+    }
+    if (n.related_job_post_id) {
+      const params = new URLSearchParams();
+      params.set('postId', n.related_job_post_id);
+      if (n.related_application_id) {
+        params.set('applicationId', n.related_application_id);
+      }
+      navigate(`/marketplace?${params.toString()}`);
+    }
   }
 
   const unreadCount = appUser
@@ -91,7 +108,7 @@ export function NotificationsPage() {
                 key={n.id}
                 notification={n}
                 unread={appUser ? isNotificationUnread(n, appUser.uid) : false}
-                onMarkRead={() => handleMarkRead(n)}
+                onOpen={() => handleOpen(n)}
               />
             ))}
           </div>
@@ -101,14 +118,29 @@ export function NotificationsPage() {
   );
 }
 
+function formatNotificationTime(ts: unknown): string {
+  if (!ts) return '';
+  // Firestore Timestamp viene como { seconds, nanoseconds } (o _seconds tras serialización REST).
+  if (typeof ts === 'object' && ts !== null) {
+    const obj = ts as { seconds?: number; _seconds?: number };
+    const seconds = obj.seconds ?? obj._seconds;
+    if (typeof seconds === 'number') {
+      return new Date(seconds * 1000).toLocaleString('es-CL');
+    }
+  }
+  // Fallback: ISO string o ms epoch.
+  const d = new Date(ts as string | number);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('es-CL');
+}
+
 function NotificationItem({
   notification,
   unread,
-  onMarkRead,
+  onOpen,
 }: {
   notification: Notification;
   unread: boolean;
-  onMarkRead: () => void;
+  onOpen: () => void;
 }) {
   const typeColors: Record<string, string> = {
     application_accepted: '#22c55e',
@@ -122,6 +154,7 @@ function NotificationItem({
   };
 
   const color = typeColors[notification.type] ?? '#6b7280';
+  const isClickable = Boolean(notification.related_job_post_id);
 
   return (
     <Card
@@ -129,9 +162,10 @@ function NotificationItem({
       style={{
         border: unread ? '1px solid #fce7f3' : '1px solid #f0f0f0',
         background: unread ? '#fdf4f8' : '#fff',
-        cursor: unread ? 'pointer' : 'default',
+        cursor: isClickable ? 'pointer' : 'default',
+        transition: 'background 0.15s, border-color 0.15s',
       }}
-      onClick={unread ? onMarkRead : undefined}
+      onClick={isClickable ? onOpen : undefined}
     >
       <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
         <div
@@ -141,7 +175,7 @@ function NotificationItem({
             flexShrink: 0, marginTop: '4px',
           }}
         />
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: '14px', fontWeight: unread ? 600 : 400, color: '#111827', margin: '0 0 4px' }}>
             {notification.title}
           </p>
@@ -149,11 +183,12 @@ function NotificationItem({
             {notification.message}
           </p>
           <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '6px' }}>
-            {notification.created_at
-              ? new Date(notification.created_at).toLocaleString('es-CL')
-              : ''}
+            {formatNotificationTime(notification.created_at)}
           </p>
         </div>
+        {isClickable && (
+          <ChevronRight size={16} color="#9CA3AF" style={{ flexShrink: 0, marginTop: '6px' }} />
+        )}
       </div>
     </Card>
   );

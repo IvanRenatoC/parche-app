@@ -34,8 +34,12 @@ service cloud.firestore {
     // ───────────────────────────────────────────────
     // users/{uid}
     // ───────────────────────────────────────────────
+    // MVP: lectura para cualquier autenticado para que el owner pueda ver el
+    // perfil del postulante (nombre, email, RUT) y el worker pueda ver datos
+    // públicos del owner si fuera necesario. Trade-off documentado en
+    // docs/SECURITY_RULES.md — escritura sigue restringida al dueño.
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      allow read: if isAuthenticated();
       allow create: if isOwner(userId);
       allow update: if isOwner(userId);
       allow delete: if false;
@@ -54,8 +58,12 @@ service cloud.firestore {
     // ───────────────────────────────────────────────
     // workers/{uid}
     // ───────────────────────────────────────────────
+    // MVP: lectura para cualquier autenticado para que el owner pueda ver
+    // oficios, años de experiencia y nacionalidad del postulante en el
+    // resumen del modal. Documentos sensibles (foto carnet, certificados)
+    // siguen en Storage con sus propias reglas.
     match /workers/{workerId} {
-      allow read: if isOwner(workerId);
+      allow read: if isAuthenticated();
       allow create: if isOwner(workerId);
       allow update: if isOwner(workerId);
       allow delete: if false;
