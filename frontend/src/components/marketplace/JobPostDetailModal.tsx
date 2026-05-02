@@ -8,6 +8,7 @@ import {
   withdrawApplication,
   applyToJobPost,
   closeJobPost,
+  confirmParche,
 } from '../../services/jobPosts';
 import { findChatByApplication } from '../../services/chat';
 import { getPendingRatings, type PendingRating } from '../../services/ratings';
@@ -18,11 +19,12 @@ import { Badge } from '../ui/Card';
 import { Textarea } from '../ui/Input';
 import { ModalOverlay } from './CreateJobPostModal';
 import { ChatModal } from './ChatModal';
+import { WorkerVerificationPanel } from '../worker/WorkerVerificationPanel';
 import type { JobPost, Application, User as AppUser, Worker } from '../../types';
 import { APPLICATION_STATUS_LABEL, JOB_POST_STATUS_LABEL } from '../../types';
 import {
   MapPin, Calendar, Clock, Users, DollarSign, Briefcase,
-  CheckCircle, XCircle, Check, X, ChevronDown, ChevronUp, Globe, MessageSquare, MessageCircle,
+  CheckCircle, XCircle, Check, X, ChevronDown, ChevronUp, Globe, MessageSquare, MessageCircle, ShieldCheck,
 } from 'lucide-react';
 
 type EnrichedApplication = Application & { worker?: Worker & { user?: AppUser } };
@@ -253,9 +255,9 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
           </div>
         )}
 
-        {!isOwner && post.status === 'published' && (
+        {!isOwner && (post.status === 'published' || myApplication) && (
           <div style={{ borderTop: '1px solid #ECE7DD', paddingTop: '16px' }}>
-            {!myApplication ? (
+            {!myApplication && post.status === 'published' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <Textarea
                   label="¿Por qué deberías ser elegido?"
@@ -268,7 +270,7 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
                   Postular a este turno
                 </Button>
               </div>
-            ) : (
+            ) : myApplication ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Badge color={appColors[myApplication.status] ?? 'gray'}>
@@ -276,7 +278,52 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
                   </Badge>
                   <span style={{ fontSize: '13px', color: '#6B7280' }}>Tu postulación</span>
                 </div>
-                {workerChatExists && myApplication && (
+
+                {/* Aceptado: confirmar parche o ver chat */}
+                {myApplication.status === 'accepted' && !myApplication.worker_confirmed_at && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    loading={actionLoading === 'confirm'}
+                    onClick={async () => {
+                      setActionLoading('confirm');
+                      try {
+                        const label = [appUser?.first_name, appUser?.last_name].filter(Boolean).join(' ') || undefined;
+                        await confirmParche(myApplication, post.title, label);
+                        setInfo('¡Confirmaste tu participación! El negocio fue notificado.');
+                        await loadApplications();
+                      } catch (e: unknown) {
+                        setError(e instanceof Error ? e.message : 'Error al confirmar');
+                      } finally {
+                        setActionLoading(null);
+                      }
+                    }}
+                  >
+                    ✓ Confirmar parche
+                  </Button>
+                )}
+
+                {/* Chat: solo si está aceptado y confirmado, o si existe chat iniciado por owner */}
+                {myApplication.status === 'accepted' && myApplication.worker_confirmed_at ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      if (!appUser) return;
+                      const { getOrCreateChat } = await import('../../services/chat');
+                      const chatId = await getOrCreateChat(
+                        myApplication.owner_uid,
+                        myApplication.worker_uid,
+                        myApplication.job_post_id,
+                        myApplication.id
+                      );
+                      if (chatId) setChatApp(myApplication as EnrichedApplication);
+                    }}
+                  >
+                    <MessageCircle size={14} style={{ marginRight: '6px' }} />
+                    Chat con el negocio
+                  </Button>
+                ) : myApplication.status === 'applied' && workerChatExists ? (
                   <Button
                     variant="outline"
                     size="sm"
@@ -285,7 +332,12 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
                     <MessageCircle size={14} style={{ marginRight: '6px' }} />
                     Chat con el negocio
                   </Button>
-                )}
+                ) : myApplication.status === 'applied' && !workerChatExists ? (
+                  <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0, fontStyle: 'italic' }}>
+                    El negocio aún no ha iniciado una conversación.
+                  </p>
+                ) : null}
+
                 {myApplication.status === 'applied' && !showWithdraw && (
                   <Button variant="outline" size="sm" onClick={() => setShowWithdraw(true)}>
                     Retirar postulación
@@ -308,7 +360,7 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
           </div>
         )}
 
@@ -405,6 +457,7 @@ function ApplicationRow({
   highlight?: boolean;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [showVerification, setShowVerification] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
 
   // Si llegamos por deep link, hacer scroll al postulante destacado.
@@ -490,10 +543,32 @@ function ApplicationRow({
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
             {expanded ? 'Ocultar' : 'Ver perfil'}
           </button>
+          {(w?.profile_photo_url || w?.identity_document_url) && (
+            <button
+              type="button"
+              onClick={() => setShowVerification(true)}
+              title="Ver foto de perfil y documento de identidad"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '6px 10px',
+                borderRadius: '8px',
+                border: '1px solid #E8E5E0',
+                background: '#FFFFFF',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#6B7280',
+                cursor: 'pointer',
+              }}
+            >
+              <ShieldCheck size={13} /> Verificar
+            </button>
+          )}
           <button
             type="button"
             onClick={onChat}
-            title="Iniciar chat"
+            title="Puedes escribirle al postulante antes de decidir."
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -508,7 +583,7 @@ function ApplicationRow({
               cursor: 'pointer',
             }}
           >
-            <MessageCircle size={13} /> Chat
+            <MessageCircle size={13} /> Abrir chat
           </button>
           {canAccept && (
             <Button size="sm" variant="primary" loading={loading} onClick={onAccept}>
@@ -564,6 +639,10 @@ function ApplicationRow({
             </p>
           )}
         </div>
+      )}
+
+      {showVerification && w && (
+        <WorkerVerificationPanel worker={w} onClose={() => setShowVerification(false)} />
       )}
     </div>
   );
