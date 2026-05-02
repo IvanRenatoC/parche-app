@@ -19,7 +19,7 @@ El flujo central es: Negocio publica un turno → Trabajadores postulan → Nego
 
 ---
 
-## Estado actual del MVP (2026-04-30)
+## Estado actual del MVP (2026-05-02)
 
 | Área | Estado |
 |---|---|
@@ -29,10 +29,13 @@ El flujo central es: Negocio publica un turno → Trabajadores postulan → Nego
 | Firestore | ✅ Funcional en local (reglas en test mode) |
 | Flujo crítico de aceptación | ✅ Implementado en backend |
 | Notificaciones internas | ✅ Funcionales (eventos: postulación, desistimiento, nuevo turno; con campanita y badge en navbar) |
+| Chat owner ↔ postulante | ✅ Tiempo real (Firestore onSnapshot), iniciado por el owner |
+| Calificaciones obligatorias | ✅ Gate antes de publicar/postular; promedio visible en UI |
+| Nota de presentación al postular | ✅ Worker escribe nota; owner la ve en el panel expandible |
+| Google Maps integrado | ✅ Address Autocomplete (locales) + mapa de turnos en marketplace |
 | Cloud Run (deploy backend) | ⏳ Pendiente |
 | Firebase Hosting (deploy frontend) | ⏳ Pendiente |
 | Índices Firestore compuestos | ⏳ Pendiente deploy (workaround: orden en cliente) |
-| Google Maps integrado | ✅ Address Autocomplete (locales) + mapa de turnos en marketplace |
 | SendGrid emails reales | ⏳ Pendiente (stub activo en dev) |
 | CI/CD pipeline | ⏳ Pendiente |
 
@@ -102,7 +105,11 @@ parche-app/
 │   │   │   │   └── Navbar.tsx       # Muestra rol "Negocio"/"Trabajador", dropdown, notificaciones
 │   │   │   ├── marketplace/
 │   │   │   │   ├── CreateJobPostModal.tsx  # Modal para publicar turno (owner)
-│   │   │   │   └── JobPostDetailModal.tsx  # Modal para ver postulantes y aceptar (owner) / postular (worker)
+│   │   │   │   ├── JobPostDetailModal.tsx  # Modal para ver postulantes y aceptar (owner) / postular (worker)
+│   │   │   │   └── ChatModal.tsx           # Chat en tiempo real entre owner y postulante
+│   │   │   ├── ratings/
+│   │   │   │   ├── RatingModal.tsx         # Gate de calificación obligatoria (1-5 estrellas)
+│   │   │   │   └── StarDisplay.tsx         # Visualización de promedio + "Sin calificaciones"
 │   │   │   └── ui/
 │   │   │       ├── Button.tsx       # Variantes: primary, secondary, outline, ghost, danger
 │   │   │       ├── Card.tsx         # Card, Badge, Spinner
