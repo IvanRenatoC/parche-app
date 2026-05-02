@@ -9,15 +9,17 @@ import {
   applyToJobPost,
   closeJobPost,
 } from '../../services/jobPosts';
+import { findChatByApplication } from '../../services/chat';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Card';
 import { Textarea } from '../ui/Input';
 import { ModalOverlay } from './CreateJobPostModal';
+import { ChatModal } from './ChatModal';
 import type { JobPost, Application, User as AppUser, Worker } from '../../types';
 import { APPLICATION_STATUS_LABEL, JOB_POST_STATUS_LABEL } from '../../types';
 import {
   MapPin, Calendar, Clock, Users, DollarSign, Briefcase,
-  CheckCircle, XCircle, Check, X, ChevronDown, ChevronUp, Globe, MessageSquare,
+  CheckCircle, XCircle, Check, X, ChevronDown, ChevronUp, Globe, MessageSquare, MessageCircle,
 } from 'lucide-react';
 
 type EnrichedApplication = Application & { worker?: Worker & { user?: AppUser } };
@@ -39,6 +41,8 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
   const [myApplication, setMyApplication] = useState<Application | null>(null);
   const [applyNote, setApplyNote] = useState('');
   const [withdrawReason, setWithdrawReason] = useState('');
+  const [chatApp, setChatApp] = useState<EnrichedApplication | null>(null);
+  const [workerChatExists, setWorkerChatExists] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showClose, setShowClose] = useState(false);
   const [closeReason, setCloseReason] = useState('');
@@ -88,6 +92,10 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
         ? ({ id: snap.docs[0].id, ...snap.docs[0].data() } as Application)
         : null;
       setMyApplication(mine);
+      if (mine) {
+        const chat = await findChatByApplication(mine.id);
+        setWorkerChatExists(chat !== null);
+      }
     }
   }, [appUser, isOwner, post.id, enrich]);
 
@@ -238,6 +246,16 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
                   </Badge>
                   <span style={{ fontSize: '13px', color: '#6B7280' }}>Tu postulación</span>
                 </div>
+                {workerChatExists && myApplication && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setChatApp(myApplication as EnrichedApplication)}
+                  >
+                    <MessageCircle size={14} style={{ marginRight: '6px' }} />
+                    Chat con el negocio
+                  </Button>
+                )}
                 {myApplication.status === 'applied' && !showWithdraw && (
                   <Button variant="outline" size="sm" onClick={() => setShowWithdraw(true)}>
                     Retirar postulación
@@ -300,6 +318,7 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
                       application={app}
                       canAccept={post.status === 'published' && app.status === 'applied' && post.accepted_workers_count < post.required_workers}
                       onAccept={() => handleAcceptWorker(app)}
+                      onChat={() => setChatApp(app)}
                       loading={actionLoading === `accept_${app.id}`}
                       defaultExpanded={highlightApplicationId === app.id}
                       highlight={highlightApplicationId === app.id}
@@ -311,6 +330,20 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
           </div>
         )}
       </div>
+
+      {chatApp && (
+        <ChatModal
+          application={chatApp}
+          jobTitle={post.title}
+          otherName={
+            chatApp.worker?.user
+              ? `${chatApp.worker.user.first_name ?? ''} ${chatApp.worker.user.last_name ?? ''}`.trim() ||
+                chatApp.worker.user.email
+              : `Trabajador ${chatApp.worker_uid.slice(0, 6)}…`
+          }
+          onClose={() => setChatApp(null)}
+        />
+      )}
     </ModalOverlay>
   );
 }
@@ -319,6 +352,7 @@ function ApplicationRow({
   application,
   canAccept,
   onAccept,
+  onChat,
   loading,
   defaultExpanded = false,
   highlight = false,
@@ -326,6 +360,7 @@ function ApplicationRow({
   application: EnrichedApplication;
   canAccept: boolean;
   onAccept: () => void;
+  onChat: () => void;
   loading: boolean;
   defaultExpanded?: boolean;
   highlight?: boolean;
@@ -415,6 +450,26 @@ function ApplicationRow({
           >
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
             {expanded ? 'Ocultar' : 'Ver perfil'}
+          </button>
+          <button
+            type="button"
+            onClick={onChat}
+            title="Iniciar chat"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '6px 10px',
+              borderRadius: '8px',
+              border: '1px solid #E8E5E0',
+              background: '#FFFFFF',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#C0395B',
+              cursor: 'pointer',
+            }}
+          >
+            <MessageCircle size={13} /> Chat
           </button>
           {canAccept && (
             <Button size="sm" variant="primary" loading={loading} onClick={onAccept}>

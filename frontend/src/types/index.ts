@@ -137,6 +137,26 @@ export interface Application {
   worker?: Worker & { user?: User };
 }
 
+export interface Chat {
+  id: string;
+  owner_uid: string;
+  worker_uid: string;
+  job_post_id: string;
+  application_id: string;
+  last_message: string | null;
+  last_message_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  chat_id: string;
+  sender_uid: string;
+  content: string;
+  created_at: string;
+}
+
 export interface Comment {
   id: string;
   job_post_id: string;
