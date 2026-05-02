@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     EMAIL_PROVIDER: str = "stub"
     SENDGRID_API_KEY: str = ""
     FROM_EMAIL: str = "no-reply@parche.app"
+    PAYMENTS_ENABLED: bool = False
+    PUBLICATION_PRICE_USD: float = 1.5
+    PAYMENT_PROVIDER: str = "stub"
 
     @property
     def cors_origins(self) -> list[str]:

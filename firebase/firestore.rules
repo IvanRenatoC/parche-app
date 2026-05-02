@@ -209,5 +209,23 @@ service cloud.firestore {
       allow read: if false;
       allow write: if false;
     }
+
+    // ───────────────────────────────────────────────
+    // payments/{paymentId}
+    // ───────────────────────────────────────────────
+    // Solo el owner de cada pago puede leer. Escritura solo desde backend.
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && resource.data.owner_uid == uid();
+      allow write: if false;
+    }
+
+    // ───────────────────────────────────────────────
+    // publication_charges/{chargeId}
+    // ───────────────────────────────────────────────
+    // El owner puede leer sus cargos. Escritura solo desde backend.
+    match /publication_charges/{chargeId} {
+      allow read: if isAuthenticated() && resource.data.owner_uid == uid();
+      allow write: if false;
+    }
   }
 }

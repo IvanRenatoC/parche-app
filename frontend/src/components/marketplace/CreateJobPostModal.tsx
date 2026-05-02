@@ -160,6 +160,8 @@ export function CreateJobPostModal({ onClose, onCreated }: { onClose: () => void
             <Input label="Salario total CLP" type="number" min="1000" placeholder="60000" error={errors.salary_total_clp} {...register('salary_total_clp')} />
           </ModalSection>
 
+          <PublicationChargeNote />
+
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '4px' }}>
             <Button type="button" variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
             <Button type="submit" size="sm" loading={isSubmitting} disabled={businesses.length === 0}>
@@ -169,6 +171,29 @@ export function CreateJobPostModal({ onClose, onCreated }: { onClose: () => void
         </form>
       </div>
     </ModalOverlay>
+  );
+}
+
+const PAYMENTS_ENABLED = import.meta.env.VITE_PAYMENTS_ENABLED === 'true';
+const PUBLICATION_PRICE_USD = Number(import.meta.env.VITE_PUBLICATION_PRICE_USD ?? '1.5');
+
+function PublicationChargeNote() {
+  return (
+    <div
+      style={{
+        padding: '10px 12px',
+        borderRadius: '8px',
+        background: PAYMENTS_ENABLED ? '#FEF7E6' : '#F3F4F6',
+        border: `1px solid ${PAYMENTS_ENABLED ? '#FCE7B0' : '#E8E5E0'}`,
+        color: PAYMENTS_ENABLED ? '#92400E' : '#6B7280',
+        fontSize: '12px',
+        lineHeight: 1.5,
+      }}
+    >
+      {PAYMENTS_ENABLED
+        ? `Para publicar este turno, debes pagar USD ${PUBLICATION_PRICE_USD.toFixed(2)}.`
+        : `Cobro por publicación: USD ${PUBLICATION_PRICE_USD.toFixed(2)}. Actualmente desactivado durante pruebas.`}
+    </div>
   );
 }
 
