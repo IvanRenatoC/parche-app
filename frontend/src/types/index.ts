@@ -128,6 +128,7 @@ export interface Application {
   owner_uid: string;
   worker_uid: string;
   status: ApplicationStatus;
+  apply_note?: string | null;
   withdraw_reason: string | null;
   rejection_reason: string | null;
   auto_rejection_message_sent: boolean;
