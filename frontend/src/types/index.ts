@@ -48,6 +48,9 @@ export interface User {
   last_name: string;
   profile_completed: boolean;
   email_verified: boolean;
+  data_processing_consent_accepted?: boolean;
+  data_processing_consent_accepted_at?: string;
+  data_processing_consent_version?: string;
   created_at: string;
   updated_at: string;
 }
@@ -62,12 +65,19 @@ export interface Certificate {
   url: string;
 }
 
+export type IdentityReviewStatus = 'pending_owner_review' | 'approved' | 'rejected';
+
 export interface Worker {
   uid: string;
   rut: string;
   nationality: string;
   profile_photo_url: string;
+  profile_photo_path?: string;
   identity_document_url: string;
+  identity_document_path?: string;
+  identity_review_status?: IdentityReviewStatus;
+  identity_uploaded_at?: string;
+  profile_photo_uploaded_at?: string;
   occupations: Occupation[];
   certificates: Certificate[];
   status: 'active' | 'suspended';
@@ -132,6 +142,7 @@ export interface Application {
   withdraw_reason: string | null;
   rejection_reason: string | null;
   auto_rejection_message_sent: boolean;
+  worker_confirmed_at?: string | null;
   created_at: string;
   updated_at: string;
   worker?: Worker & { user?: User };

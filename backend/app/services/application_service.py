@@ -153,6 +153,24 @@ def accept_application(application_id: str, owner_uid: str) -> dict:
     emails_sent = 0
     job_title = job_post.get("title", "publicación")
 
+    # Notify the accepted worker
+    db.collection("notifications").add({
+        "recipient_uid": worker_uid,
+        "recipient_role": "",
+        "type": "application_accepted",
+        "title": "¡Te seleccionaron para el turno!",
+        "message": (
+            f"El negocio te seleccionó para \"{job_title}\". "
+            "Confirma tu participación en la app para que el negocio lo sepa."
+        ),
+        "related_job_post_id": job_post_id,
+        "related_application_id": application_id,
+        "read": False,
+        "read_by": [],
+        "created_at": now,
+    })
+    notifications_created += 1
+
     for wuid in not_selected_uids:
         if not wuid:
             continue
@@ -160,16 +178,18 @@ def accept_application(application_id: str, owner_uid: str) -> dict:
         # Create internal notification
         db.collection("notifications").add({
             "recipient_uid": wuid,
+            "recipient_role": "",
             "type": "application_not_selected",
-            "title": "No fuiste seleccionado",
+            "title": "No fuiste seleccionado en esta oportunidad",
             "message": (
-                f"Hola, gracias por postular a '{job_title}' en Parche. "
-                "El owner ya seleccionó a otro postulante para esta vacante. "
-                "Te invitamos a revisar nuevas publicaciones disponibles."
+                "En esta oportunidad hemos seleccionado a otro postulante. "
+                "Estuvo difícil la decisión y te invitamos a estar atento/a "
+                "a próximas oportunidades en Parche."
             ),
             "related_job_post_id": job_post_id,
             "related_application_id": None,
             "read": False,
+            "read_by": [],
             "created_at": now,
         })
         notifications_created += 1

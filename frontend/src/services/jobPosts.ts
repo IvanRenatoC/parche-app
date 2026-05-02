@@ -171,6 +171,30 @@ export async function withdrawApplication(
   }
 }
 
+export async function confirmParche(
+  application: Pick<Application, 'id' | 'owner_uid' | 'job_post_id'>,
+  jobTitle: string,
+  workerLabel?: string
+): Promise<void> {
+  await updateDoc(doc(db, 'applications', application.id), {
+    worker_confirmed_at: serverTimestamp(),
+    updated_at: serverTimestamp(),
+  });
+  try {
+    const who = workerLabel ? `${workerLabel} confirmó` : 'El trabajador confirmó';
+    await createNotification({
+      recipient_uid: application.owner_uid,
+      type: 'application_accepted',
+      title: 'Trabajador confirmó el turno',
+      message: `${who} su participación en "${jobTitle}". Ya puede comenzar a chatear.`,
+      related_job_post_id: application.job_post_id,
+      related_application_id: application.id,
+    });
+  } catch (e) {
+    console.warn('No se pudo notificar al owner del parche confirmado:', e);
+  }
+}
+
 export async function getWorkerApplications(workerUid: string): Promise<Application[]> {
   const q = query(collection(db, 'applications'), where('worker_uid', '==', workerUid));
   const snap = await getDocs(q);
