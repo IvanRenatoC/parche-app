@@ -10,6 +10,9 @@ import {
   closeJobPost,
 } from '../../services/jobPosts';
 import { findChatByApplication } from '../../services/chat';
+import { getPendingRatings, type PendingRating } from '../../services/ratings';
+import { RatingModal } from '../ratings/RatingModal';
+import { StarDisplay } from '../ratings/StarDisplay';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Card';
 import { Textarea } from '../ui/Input';
@@ -43,6 +46,8 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
   const [withdrawReason, setWithdrawReason] = useState('');
   const [chatApp, setChatApp] = useState<EnrichedApplication | null>(null);
   const [workerChatExists, setWorkerChatExists] = useState(false);
+  const [ratingQueue, setRatingQueue] = useState<PendingRating[]>([]);
+  const [pendingApplyNote, setPendingApplyNote] = useState<string | null>(null);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showClose, setShowClose] = useState(false);
   const [closeReason, setCloseReason] = useState('');
@@ -101,19 +106,39 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
 
   useEffect(() => { loadApplications(); }, [loadApplications]);
 
-  async function handleApply() {
+  async function doApply(note: string) {
     if (!appUser) return;
     setActionLoading('apply');
     setError('');
     try {
       const workerLabel = [appUser.first_name, appUser.last_name].filter(Boolean).join(' ') || undefined;
-      await applyToJobPost(post, appUser.uid, workerLabel, applyNote);
+      await applyToJobPost(post, appUser.uid, workerLabel, note);
       setInfo('¡Postulación enviada! El Negocio recibirá tu interés.');
       await loadApplications();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al postular');
     } finally {
       setActionLoading(null);
+    }
+  }
+
+  async function handleApply() {
+    if (!appUser) return;
+    const pending = await getPendingRatings(appUser.uid, 'worker');
+    if (pending.length > 0) {
+      setPendingApplyNote(applyNote);
+      setRatingQueue(pending);
+    } else {
+      await doApply(applyNote);
+    }
+  }
+
+  function handleRatingSubmitted() {
+    const next = ratingQueue.slice(1);
+    setRatingQueue(next);
+    if (next.length === 0 && pendingApplyNote !== null) {
+      void doApply(pendingApplyNote);
+      setPendingApplyNote(null);
     }
   }
 
@@ -177,6 +202,11 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
             <Badge color={statusColors[post.status] ?? 'gray'}>{JOB_POST_STATUS_LABEL[post.status]}</Badge>
             <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#111827', margin: '8px 0 4px' }}>{post.title}</h2>
             <p style={{ fontSize: '14px', color: '#C0395B', fontWeight: 600, margin: 0 }}>{post.occupation}</p>
+            {!isOwner && (
+              <div style={{ marginTop: '6px' }}>
+                <StarDisplay uid={post.owner_uid} size="md" />
+              </div>
+            )}
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}>
             <X size={20} />
@@ -330,6 +360,15 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
           </div>
         )}
       </div>
+
+      {ratingQueue.length > 0 && appUser && (
+        <RatingModal
+          pending={ratingQueue[0]}
+          fromUid={appUser.uid}
+          fromRole={appUser.role}
+          onSubmitted={handleRatingSubmitted}
+        />
+      )}
 
       {chatApp && (
         <ChatModal
@@ -490,6 +529,12 @@ function ApplicationRow({
             gap: '12px',
           }}
         >
+          <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontSize: '10.5px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Calificación
+            </span>
+            <StarDisplay uid={application.worker_uid} size="sm" />
+          </div>
           {application.apply_note && (
             <DetailField icon={<MessageSquare size={12} />} label="Nota del postulante">
               {application.apply_note}

@@ -11,6 +11,7 @@ import {
   getOwnerJobPosts,
   type JobPostFilters,
 } from '../services/jobPosts';
+import { getPendingRatings, type PendingRating } from '../services/ratings';
 import type { JobPost } from '../types';
 import { OCCUPATIONS, JOB_POST_STATUS_LABEL } from '../types';
 import { Plus, MapPin, Clock, Users, DollarSign, Filter, Calendar, List, Map as MapIcon } from 'lucide-react';
@@ -18,6 +19,8 @@ import { CreateJobPostModal } from '../components/marketplace/CreateJobPostModal
 import { JobPostDetailModal } from '../components/marketplace/JobPostDetailModal';
 import { JobsMap } from '../components/marketplace/JobsMap';
 import { CHILE_LOCATIONS, getCommunesForRegion } from '../lib/chileLocations';
+import { RatingModal } from '../components/ratings/RatingModal';
+import { StarDisplay } from '../components/ratings/StarDisplay';
 
 export function MarketplacePage() {
   const { appUser } = useAuth();
@@ -29,6 +32,8 @@ export function MarketplacePage() {
   const [showCreate, setShowCreate] = useState(false);
   const [selectedPost, setSelectedPost] = useState<JobPost | null>(null);
   const [view, setView] = useState<'list' | 'map'>('list');
+  const [ratingQueue, setRatingQueue] = useState<PendingRating[]>([]);
+  const [pendingAction, setPendingAction] = useState<'create' | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkPostId = searchParams.get('postId');
   const deepLinkApplicationId = searchParams.get('applicationId') ?? undefined;
@@ -66,6 +71,26 @@ export function MarketplacePage() {
     return () => { cancelled = true; };
   }, [deepLinkPostId, selectedPost?.id]);
 
+  async function handleCreateClick() {
+    if (!appUser) return;
+    const pending = await getPendingRatings(appUser.uid, 'owner');
+    if (pending.length > 0) {
+      setRatingQueue(pending);
+      setPendingAction('create');
+    } else {
+      setShowCreate(true);
+    }
+  }
+
+  function handleRatingSubmitted() {
+    const next = ratingQueue.slice(1);
+    setRatingQueue(next);
+    if (next.length === 0) {
+      if (pendingAction === 'create') setShowCreate(true);
+      setPendingAction(null);
+    }
+  }
+
   const occupationOptions = OCCUPATIONS.map((o) => ({ value: o, label: o }));
   const regionOptions = CHILE_LOCATIONS.map((r) => ({ value: r.name, label: r.name }));
   const communeOptions = getCommunesForRegion(filters.region).map((c) => ({ value: c, label: c }));
@@ -85,7 +110,7 @@ export function MarketplacePage() {
             </p>
           </div>
           {isOwner && (
-            <Button onClick={() => setShowCreate(true)} size="sm">
+            <Button onClick={handleCreateClick} size="sm">
               <Plus size={14} style={{ marginRight: '6px' }} />
               Publicar turno
             </Button>
@@ -191,6 +216,15 @@ export function MarketplacePage() {
             }
             fetchPosts();
           }}
+        />
+      )}
+
+      {ratingQueue.length > 0 && appUser && (
+        <RatingModal
+          pending={ratingQueue[0]}
+          fromUid={appUser.uid}
+          fromRole={appUser.role}
+          onSubmitted={handleRatingSubmitted}
         />
       )}
     </Layout>
@@ -328,6 +362,11 @@ function JobPostRow({ post, isOwner, onClick }: { post: JobPost; isOwner: boolea
         <p style={{ fontSize: '12px', color: '#C0395B', fontWeight: 600, marginTop: '3px' }}>
           {post.occupation}
         </p>
+        {!isOwner && (
+          <div style={{ marginTop: '3px' }}>
+            <StarDisplay uid={post.owner_uid} size="sm" />
+          </div>
+        )}
       </div>
 
       <RowMeta icon={<MapPin size={13} />}>{post.commune || '—'}</RowMeta>

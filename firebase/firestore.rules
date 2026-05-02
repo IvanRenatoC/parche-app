@@ -129,9 +129,10 @@ service cloud.firestore {
     // ratings/{ratingId}
     // ───────────────────────────────────────────────
     match /ratings/{ratingId} {
-      allow read: if isAuthenticated()
-                  && (resource.data.from_uid == uid()
-                      || resource.data.to_uid == uid());
+      // MVP: lectura para cualquier autenticado para calcular promedios en cliente
+      // (owner ve promedio del trabajador, worker ve promedio del negocio).
+      // Trade-off documentado en docs/RATINGS.md — ajustar con backend en v2.
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated()
                     && request.resource.data.from_uid == uid()
                     && request.resource.data.from_uid != request.resource.data.to_uid;
