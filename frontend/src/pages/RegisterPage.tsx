@@ -62,7 +62,7 @@ export function RegisterPage() {
       <Card style={{ width: '100%', maxWidth: '420px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '8px' }}>
           <div>
-            <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#1F1F1F' }}>Crea tu cuenta</h2>
+            <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#111827' }}>Crea tu cuenta</h2>
             <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>
               Solo necesitamos tu email y una contraseña. Después completarás tus datos.
             </p>
@@ -124,7 +124,7 @@ export function RegisterPage() {
 
           <p style={{ textAlign: 'center', fontSize: '14px', color: '#6B7280' }}>
             ¿Ya tienes cuenta?{' '}
-            <Link to="/login" style={{ color: '#ad4b7e', fontWeight: 600 }}>
+            <Link to="/login" style={{ color: '#C0395B', fontWeight: 600 }}>
               Inicia sesión
             </Link>
           </p>

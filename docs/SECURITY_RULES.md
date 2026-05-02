@@ -15,9 +15,8 @@
 - Puede leer/escribir sus propios `businesses`
 - Puede crear/editar/cerrar sus propios `job_posts`
 - Puede leer `applications` de sus propias publicaciones
-- NO puede ver perfiles de otros owners
-- NO puede ver workers que no postularon a sus publicaciones
-- NO puede editar el perfil de un worker
+- Puede leer el perfil (`users` + `workers`) del postulante para mostrar
+  el resumen en el modal. **No** puede modificarlo.
 - NO puede aceptar/rechazar en publicaciones ajenas
 
 ### Worker
@@ -25,9 +24,17 @@
 - Puede leer `job_posts` en estado `published`
 - Puede crear/leer sus propias `applications`
 - Puede retirar sus propias postulaciones
-- NO puede ver perfiles de otros workers
 - NO puede editar publicaciones
 - NO puede ver postulaciones de otros workers
+
+### Trade-off MVP en lectura de perfiles
+
+`users` y `workers` permiten read a cualquier usuario autenticado. Esto
+expone email/RUT/oficios/nacionalidad pero es necesario para que el owner
+vea el resumen del postulante (sin ir por backend). Documentos sensibles
+(foto de carnet, certificados) viven en Storage con reglas más estrictas.
+Cuando se incorpore un backend que sirva los applications enriquecidos,
+estos rules pueden volver a `if isOwner(uid)`.
 
 ## Reglas Firestore (conceptuales)
 
@@ -35,7 +42,7 @@ Las reglas reales están en `firebase/firestore.rules`.
 
 ```
 users/{uid}:
-  read: auth.uid == uid
+  read: auth != null            # MVP: cualquier autenticado para mostrar perfil
   write: auth.uid == uid
 
 owners/{uid}:
@@ -43,7 +50,7 @@ owners/{uid}:
   write: auth.uid == uid
 
 workers/{uid}:
-  read: auth.uid == uid
+  read: auth != null            # MVP: cualquier autenticado para resumen postulante
   write: auth.uid == uid
 
 businesses/{businessId}:
@@ -61,9 +68,24 @@ applications/{applicationId}:
          || (auth.uid == resource.data.owner_uid && update is reject)
 
 notifications/{notificationId}:
+  # Modo dual: notificaciones directas (recipient_uid) o broadcast por rol (recipient_role).
   read: resource.data.recipient_uid == auth.uid
-  write: false  # Solo el backend puede crear/actualizar
-  update: auth.uid == resource.data.recipient_uid && only "read" field changes
+       || (resource.data.recipient_role != "" && resource.data.recipient_role == userRole)
+  create: auth.uid != null
+         && request.resource.data.recipient_uid is string
+         && request.resource.data.recipient_role is string
+         && request.resource.data.recipient_uid != auth.uid
+  update: (recipient_uid == auth.uid OR recipient_role == userRole)
+         && only ["read", "read_by"] fields change
+
+# Por qué se permite el create desde el cliente:
+# - Worker → owner: cuando el worker postula o desiste, escribe la notificación
+#   directa al owner_uid del job_post (que el cliente conoce).
+# - Owner → workers: al publicar un turno, el owner crea UNA notificación
+#   broadcast con recipient_role="worker"; cada worker la marca como leída
+#   agregándose al array read_by (sin necesidad de fan-out por documento).
+# Esto evita exponer la colección 'users' o 'workers' (ambos tienen PII)
+# para listar destinatarios.
 
 audit_logs/{logId}:
   read: false  # Solo administradores backend

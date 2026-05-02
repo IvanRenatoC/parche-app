@@ -3,14 +3,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { Layout } from '../components/layout/Layout';
 import { Card, Badge, Spinner } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input, Select } from '../components/ui/Input';
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
+import { Input, Select, Textarea } from '../components/ui/Input';
+import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Application, Business, JobPost, Worker } from '../types';
 import { APPLICATION_STATUS_LABEL, BUSINESS_TYPES, type BusinessType, JOB_POST_STATUS_LABEL } from '../types';
-import { Briefcase, DollarSign, MapPin, User as UserIcon, Edit3, Save, X, Calendar } from 'lucide-react';
+import { Briefcase, DollarSign, MapPin, User as UserIcon, Edit3, Save, X, Calendar, Plus, LogOut } from 'lucide-react';
 import { CHILE_LOCATIONS, getCommunesForRegion } from '../lib/chileLocations';
-import { getOwnerJobPosts, getWorkerApplications } from '../services/jobPosts';
+import { getOwnerJobPosts, getWorkerApplications, withdrawApplication } from '../services/jobPosts';
+import { AddressAutocomplete, EMPTY_ADDRESS, type AddressValue } from '../components/ui/AddressAutocomplete';
 
 export function ProfilePage() {
   const { appUser } = useAuth();
@@ -71,14 +72,14 @@ function PersonalCard() {
           <div
             style={{
               width: '64px', height: '64px', borderRadius: '50%',
-              background: '#ad4b7e', display: 'flex', alignItems: 'center',
+              background: '#C0395B', display: 'flex', alignItems: 'center',
               justifyContent: 'center', color: '#FFFFFF', fontSize: '24px', fontWeight: 700,
             }}
           >
             {appUser.first_name?.[0]?.toUpperCase() ?? appUser.email[0]?.toUpperCase()}
           </div>
           <div>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#111827', margin: 0 }}>
               {appUser.first_name || appUser.last_name
                 ? `${appUser.first_name} ${appUser.last_name}`
                 : 'Sin nombre'}
@@ -138,6 +139,7 @@ function OwnerSection() {
   const [posts, setPosts] = useState<JobPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [creatingNew, setCreatingNew] = useState(false);
 
   const reload = useCallback(async () => {
     if (!appUser) return;
@@ -169,7 +171,7 @@ function OwnerSection() {
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-        <StatCard icon={<Briefcase size={20} color="#ad4b7e" />} label="Publicaciones" value={String(posts.length)} />
+        <StatCard icon={<Briefcase size={20} color="#C0395B" />} label="Publicaciones" value={String(posts.length)} />
         <StatCard icon={<UserIcon size={20} color="#22C55E" />} label="Trabajadores aceptados" value={String(totalAccepted)} />
         <StatCard icon={<DollarSign size={20} color="#F59E0B" />} label="Total invertido" value={`$${totalSpent.toLocaleString('es-CL')}`} />
       </div>
@@ -177,14 +179,30 @@ function OwnerSection() {
       <Card>
         <SectionHeader
           title="Mis locales"
-          subtitle="Tus locales registrados. Puedes editar sus datos básicos."
+          subtitle="Tus locales registrados. Puedes editar sus datos básicos o agregar otro."
+          right={
+            !creatingNew && (
+              <Button size="sm" onClick={() => setCreatingNew(true)}>
+                <Plus size={14} style={{ marginRight: '6px' }} /> Agregar local
+              </Button>
+            )
+          }
         />
-        {businesses.length === 0 ? (
+        {creatingNew && appUser && (
+          <div style={{ marginTop: '14px' }}>
+            <NewBusinessForm
+              ownerUid={appUser.uid}
+              onCancel={() => setCreatingNew(false)}
+              onCreated={async () => { setCreatingNew(false); await reload(); }}
+            />
+          </div>
+        )}
+        {businesses.length === 0 && !creatingNew ? (
           <p style={{ fontSize: '14px', color: '#9CA3AF', padding: '12px 0' }}>
-            No tienes locales registrados. Crea uno desde el flujo de publicación.
+            No tienes locales registrados. Usa "Agregar local" para crear el primero.
           </p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        ) : businesses.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: creatingNew ? '14px' : 0 }}>
             {businesses.map((biz) => (
               <BusinessRow
                 key={biz.id}
@@ -196,7 +214,7 @@ function OwnerSection() {
               />
             ))}
           </div>
-        )}
+        ) : null}
       </Card>
 
       <Card>
@@ -210,11 +228,11 @@ function OwnerSection() {
             {posts.map((post) => (
               <div key={post.id} style={historyRow}>
                 <div>
-                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#1F1F1F', margin: 0 }}>{post.title}</p>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>{post.title}</p>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '2px' }}>
                     <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{post.start_date}</span>
                     <span style={{ fontSize: '12px', color: '#9CA3AF' }}>·</span>
-                    <span style={{ fontSize: '12px', color: '#ad4b7e' }}>{post.occupation}</span>
+                    <span style={{ fontSize: '12px', color: '#C0395B' }}>{post.occupation}</span>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -234,11 +252,117 @@ function OwnerSection() {
           'Foto de carnet o pasaporte de la persona',
           'Foto del local',
           'Documentos del local',
-          'Dirección con Google Maps',
           'Calificaciones recibidas',
         ]}
       />
     </>
+  );
+}
+
+function NewBusinessForm({
+  ownerUid,
+  onCancel,
+  onCreated,
+}: {
+  ownerUid: string;
+  onCancel: () => void;
+  onCreated: () => Promise<void>;
+}) {
+  const [name, setName] = useState('');
+  const [rut, setRut] = useState('');
+  const [type, setType] = useState<string>('restaurante');
+  const [region, setRegion] = useState('');
+  const [commune, setCommune] = useState('');
+  const [address, setAddress] = useState<AddressValue>(EMPTY_ADDRESS);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const regionOptions = CHILE_LOCATIONS.map((r) => ({ value: r.name, label: r.name }));
+  const communeOptions = getCommunesForRegion(region).map((c) => ({ value: c, label: c }));
+  const typeOptions = Object.entries(BUSINESS_TYPES).map(([v, l]) => ({ value: v, label: l }));
+
+  async function save() {
+    setError('');
+    if (!name.trim()) {
+      setError('Ingresa el nombre del local');
+      return;
+    }
+    if (!rut.trim() || rut.trim().length < 8) {
+      setError('Ingresa el RUT del local (ej: 76.123.456-7)');
+      return;
+    }
+    setSaving(true);
+    try {
+      const now = serverTimestamp();
+      await addDoc(collection(db, 'businesses'), {
+        owner_uid: ownerUid,
+        business_rut: rut,
+        business_name: name,
+        business_type: type as BusinessType,
+        business_subtype: 'otro',
+        address: address.address,
+        place_id: address.place_id,
+        lat: address.lat,
+        lng: address.lng,
+        region,
+        commune,
+        created_at: now,
+        updated_at: now,
+      });
+      await onCreated();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'No se pudo crear el local');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ ...businessRowStyle, flexDirection: 'column', alignItems: 'stretch', gap: '12px' }}>
+      <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>
+        Nuevo local — completa los datos básicos. La dirección con Google Maps es opcional pero
+        recomendada.
+      </p>
+      {error && (
+        <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fee2e2', color: '#991b1b', fontSize: '13px' }}>
+          {error}
+        </div>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+        <Input label="Nombre del local" value={name} onChange={(e) => setName(e.target.value)} placeholder="Bar Parche Centro" />
+        <Input label="RUT del local" value={rut} onChange={(e) => setRut(e.target.value)} placeholder="76.123.456-7" />
+        <Select label="Tipo de local" options={typeOptions} value={type} onChange={(e) => setType(e.target.value)} />
+        <Select
+          label="Región"
+          options={regionOptions}
+          placeholder="Seleccionar"
+          value={region}
+          onChange={(e) => { setRegion(e.target.value); setCommune(''); }}
+        />
+        <Select
+          label="Comuna"
+          options={communeOptions}
+          placeholder={region ? 'Seleccionar' : 'Elige primero una región'}
+          disabled={!region}
+          value={commune}
+          onChange={(e) => setCommune(e.target.value)}
+        />
+      </div>
+      <AddressAutocomplete
+        value={address}
+        onChange={setAddress}
+        label="Dirección exacta del local"
+        hint="Selecciona una sugerencia para fijar la ubicación en el mapa."
+      />
+      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+        <Button variant="secondary" size="sm" onClick={onCancel} disabled={saving}>
+          <X size={13} style={{ marginRight: '6px' }} /> Cancelar
+        </Button>
+        <Button size="sm" loading={saving} onClick={save}>
+          <Save size={13} style={{ marginRight: '6px' }} /> Crear local
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -260,6 +384,12 @@ function BusinessRow({
   const [type, setType] = useState<string>(business.business_type);
   const [region, setRegion] = useState(business.region);
   const [commune, setCommune] = useState(business.commune);
+  const [address, setAddress] = useState<AddressValue>({
+    address: business.address ?? '',
+    place_id: business.place_id ?? '',
+    lat: business.lat ?? 0,
+    lng: business.lng ?? 0,
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -270,6 +400,12 @@ function BusinessRow({
       setType(business.business_type);
       setRegion(business.region);
       setCommune(business.commune);
+      setAddress({
+        address: business.address ?? '',
+        place_id: business.place_id ?? '',
+        lat: business.lat ?? 0,
+        lng: business.lng ?? 0,
+      });
       setError('');
     }
   }, [isEditing, business]);
@@ -288,6 +424,10 @@ function BusinessRow({
         business_type: type as BusinessType,
         region,
         commune,
+        address: address.address,
+        place_id: address.place_id,
+        lat: address.lat,
+        lng: address.lng,
         updated_at: serverTimestamp(),
       });
       await onSaved();
@@ -302,13 +442,13 @@ function BusinessRow({
     return (
       <div style={businessRowStyle}>
         <div>
-          <p style={{ fontSize: '15px', fontWeight: 600, color: '#1F1F1F', margin: 0 }}>{business.business_name}</p>
+          <p style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: 0 }}>{business.business_name}</p>
           <p style={{ fontSize: '12px', color: '#6B7280', margin: '4px 0 0' }}>
             RUT {business.business_rut} · {BUSINESS_TYPES[business.business_type] ?? business.business_type}
           </p>
-          {(business.region || business.commune) && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', color: '#9CA3AF', fontSize: '12px' }}>
-              <MapPin size={11} /> {business.commune || '—'}, {business.region || '—'}
+          {business.address && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', color: '#6B7280', fontSize: '12px' }}>
+              <MapPin size={11} color="#C0395B" /> {business.address}
             </div>
           )}
         </div>
@@ -346,6 +486,12 @@ function BusinessRow({
           onChange={(e) => setCommune(e.target.value)}
         />
       </div>
+      <AddressAutocomplete
+        value={address}
+        onChange={setAddress}
+        label="Dirección exacta del local"
+        hint="Selecciona una sugerencia para fijar la ubicación en el mapa."
+      />
       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
         <Button variant="secondary" size="sm" onClick={onCancel}>Cancelar</Button>
         <Button size="sm" loading={saving} onClick={save}>Guardar</Button>
@@ -433,7 +579,7 @@ function WorkerSection() {
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-        <StatCard icon={<Briefcase size={20} color="#ad4b7e" />} label="Postulaciones" value={String(applications.length)} />
+        <StatCard icon={<Briefcase size={20} color="#C0395B" />} label="Postulaciones" value={String(applications.length)} />
         <StatCard icon={<UserIcon size={20} color="#22C55E" />} label="Aceptadas" value={String(accepted.length)} />
         <StatCard icon={<UserIcon size={20} color="#F59E0B" />} label="No seleccionadas" value={String(rejected.length)} />
       </div>
@@ -497,20 +643,7 @@ function WorkerSection() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {applications.map((app) => (
-              <div key={app.id} style={historyRow}>
-                <div>
-                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#1F1F1F', margin: 0 }}>
-                    Publicación {app.job_post_id.slice(0, 10)}…
-                  </p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', color: '#9CA3AF', fontSize: '12px' }}>
-                    <Calendar size={11} />
-                    {app.created_at ? new Date(app.created_at).toLocaleDateString('es-CL') : '—'}
-                  </div>
-                </div>
-                <Badge color={appColors[app.status] ?? 'gray'}>
-                  {APPLICATION_STATUS_LABEL[app.status]}
-                </Badge>
-              </div>
+              <WorkerApplicationRow key={app.id} application={app} onChanged={reload} />
             ))}
           </div>
         )}
@@ -526,6 +659,103 @@ function WorkerSection() {
         ]}
       />
     </>
+  );
+}
+
+function WorkerApplicationRow({
+  application,
+  onChanged,
+}: {
+  application: Application;
+  onChanged: () => Promise<void>;
+}) {
+  const { appUser } = useAuth();
+  const [confirming, setConfirming] = useState(false);
+  const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const canWithdraw = application.status === 'applied';
+  const dateLabel = application.created_at
+    ? new Date(application.created_at).toLocaleDateString('es-CL')
+    : '—';
+
+  async function handleConfirm() {
+    setLoading(true);
+    setError('');
+    try {
+      const workerLabel = appUser
+        ? [appUser.first_name, appUser.last_name].filter(Boolean).join(' ') || undefined
+        : undefined;
+      await withdrawApplication(application, reason.trim(), undefined, workerLabel);
+      await onChanged();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'No se pudo desistir');
+      setLoading(false);
+    }
+  }
+
+  if (confirming) {
+    return (
+      <div style={{ ...historyRow, flexDirection: 'column', alignItems: 'stretch', gap: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <p style={{ fontSize: '13px', fontWeight: 600, color: '#111827', margin: 0 }}>
+            Desistir de la publicación {application.job_post_id.slice(0, 10)}…
+          </p>
+          <Badge color={appColors[application.status] ?? 'gray'}>
+            {APPLICATION_STATUS_LABEL[application.status]}
+          </Badge>
+        </div>
+        <p style={{ fontSize: '12px', color: '#6B7280', margin: 0, lineHeight: 1.5 }}>
+          El Negocio verá que ya no estás disponible para este turno. Esta acción no se puede
+          deshacer.
+        </p>
+        {error && (
+          <div style={{ padding: '8px 12px', borderRadius: '8px', background: '#fee2e2', color: '#991b1b', fontSize: '12px' }}>
+            {error}
+          </div>
+        )}
+        <Textarea
+          label="Motivo (opcional)"
+          placeholder="Cuéntale al Negocio por qué desistes. Ayuda a que mejore sus turnos."
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+        />
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+          <Button variant="secondary" size="sm" onClick={() => { setConfirming(false); setError(''); }} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button variant="danger" size="sm" loading={loading} onClick={handleConfirm}>
+            Confirmar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={historyRow}>
+      <div>
+        <p style={{ fontSize: '13px', fontWeight: 600, color: '#111827', margin: 0 }}>
+          Publicación {application.job_post_id.slice(0, 10)}…
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', color: '#9CA3AF', fontSize: '12px' }}>
+          <Calendar size={11} />
+          {dateLabel}
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Badge color={appColors[application.status] ?? 'gray'}>
+          {APPLICATION_STATUS_LABEL[application.status]}
+        </Badge>
+        {canWithdraw && (
+          <Button variant="secondary" size="sm" onClick={() => setConfirming(true)}>
+            <LogOut size={13} style={{ marginRight: '6px' }} /> Desistir
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -551,7 +781,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {icon}
         <div>
-          <p style={{ fontSize: '22px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>{value}</p>
+          <p style={{ fontSize: '22px', fontWeight: 700, color: '#111827', margin: 0 }}>{value}</p>
           <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '2px 0 0' }}>{label}</p>
         </div>
       </div>
@@ -565,7 +795,7 @@ function InfoField({ label, value }: { label: string; value: string }) {
       <p style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 2px' }}>
         {label}
       </p>
-      <p style={{ fontSize: '14px', color: '#1F1F1F', fontWeight: 500, margin: 0 }}>{value}</p>
+      <p style={{ fontSize: '14px', color: '#111827', fontWeight: 500, margin: 0 }}>{value}</p>
     </div>
   );
 }
@@ -582,7 +812,7 @@ function SectionHeader({
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
       <div>
-        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1F1F1F', margin: 0 }}>{title}</h3>
+        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827', margin: 0 }}>{title}</h3>
         {subtitle && <p style={{ fontSize: '13px', color: '#6B7280', margin: '4px 0 0' }}>{subtitle}</p>}
       </div>
       {right}

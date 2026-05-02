@@ -14,8 +14,10 @@ export type NotificationType =
   | 'application_not_selected'
   | 'application_accepted'
   | 'application_rejected'
+  | 'application_withdrawn'
   | 'job_post_filled'
   | 'new_application'
+  | 'new_job_post'
   | 'general';
 
 export type BusinessType =
@@ -109,6 +111,12 @@ export interface JobPost {
   commune: string;
   status: JobPostStatus;
   close_reason: string | null;
+  /** Denormalized from Business so workers can render the post without
+   * needing read access to the businesses collection. */
+  business_name?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
   created_at: string;
   updated_at: string;
   business?: Business;
@@ -120,12 +128,33 @@ export interface Application {
   owner_uid: string;
   worker_uid: string;
   status: ApplicationStatus;
+  apply_note?: string | null;
   withdraw_reason: string | null;
   rejection_reason: string | null;
   auto_rejection_message_sent: boolean;
   created_at: string;
   updated_at: string;
   worker?: Worker & { user?: User };
+}
+
+export interface Chat {
+  id: string;
+  owner_uid: string;
+  worker_uid: string;
+  job_post_id: string;
+  application_id: string;
+  last_message: string | null;
+  last_message_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  chat_id: string;
+  sender_uid: string;
+  content: string;
+  created_at: string;
 }
 
 export interface Comment {
@@ -153,13 +182,19 @@ export interface Rating {
 
 export interface Notification {
   id: string;
+  /** Direct notification target. Empty string for role-based broadcasts. */
   recipient_uid: string;
+  /** Role-based broadcast target. Empty string for direct notifications. */
+  recipient_role: UserRole | '';
   type: NotificationType;
   title: string;
   message: string;
   related_job_post_id: string | null;
   related_application_id: string | null;
+  /** True for direct notifications when recipient has read it. */
   read: boolean;
+  /** UIDs of users that have read this broadcast notification. */
+  read_by: string[];
   created_at: string;
 }
 

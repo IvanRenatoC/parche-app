@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,15 +9,20 @@ import {
   applyToJobPost,
   closeJobPost,
 } from '../../services/jobPosts';
+import { findChatByApplication } from '../../services/chat';
+import { getPendingRatings, type PendingRating } from '../../services/ratings';
+import { RatingModal } from '../ratings/RatingModal';
+import { StarDisplay } from '../ratings/StarDisplay';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Card';
 import { Textarea } from '../ui/Input';
 import { ModalOverlay } from './CreateJobPostModal';
+import { ChatModal } from './ChatModal';
 import type { JobPost, Application, User as AppUser, Worker } from '../../types';
 import { APPLICATION_STATUS_LABEL, JOB_POST_STATUS_LABEL } from '../../types';
 import {
   MapPin, Calendar, Clock, Users, DollarSign, Briefcase,
-  CheckCircle, XCircle, Check, X
+  CheckCircle, XCircle, Check, X, ChevronDown, ChevronUp, Globe, MessageSquare, MessageCircle,
 } from 'lucide-react';
 
 type EnrichedApplication = Application & { worker?: Worker & { user?: AppUser } };
@@ -25,16 +30,24 @@ type EnrichedApplication = Application & { worker?: Worker & { user?: AppUser } 
 interface Props {
   post: JobPost;
   isOwner: boolean;
+  /** ID de la postulación a expandir automáticamente (típicamente
+   * proveniente de una deep link desde una notificación). */
+  highlightApplicationId?: string;
   onClose: () => void;
   onUpdated: () => void;
 }
 
-export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props) {
+export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onClose, onUpdated }: Props) {
   const { appUser } = useAuth();
   const [applications, setApplications] = useState<EnrichedApplication[]>([]);
   const [loadingApps, setLoadingApps] = useState(false);
   const [myApplication, setMyApplication] = useState<Application | null>(null);
+  const [applyNote, setApplyNote] = useState('');
   const [withdrawReason, setWithdrawReason] = useState('');
+  const [chatApp, setChatApp] = useState<EnrichedApplication | null>(null);
+  const [workerChatExists, setWorkerChatExists] = useState(false);
+  const [ratingQueue, setRatingQueue] = useState<PendingRating[]>([]);
+  const [pendingApplyNote, setPendingApplyNote] = useState<string | null>(null);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showClose, setShowClose] = useState(false);
   const [closeReason, setCloseReason] = useState('');
@@ -84,17 +97,22 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
         ? ({ id: snap.docs[0].id, ...snap.docs[0].data() } as Application)
         : null;
       setMyApplication(mine);
+      if (mine) {
+        const chat = await findChatByApplication(mine.id);
+        setWorkerChatExists(chat !== null);
+      }
     }
   }, [appUser, isOwner, post.id, enrich]);
 
   useEffect(() => { loadApplications(); }, [loadApplications]);
 
-  async function handleApply() {
+  async function doApply(note: string) {
     if (!appUser) return;
     setActionLoading('apply');
     setError('');
     try {
-      await applyToJobPost(post.id, post.owner_uid, appUser.uid);
+      const workerLabel = [appUser.first_name, appUser.last_name].filter(Boolean).join(' ') || undefined;
+      await applyToJobPost(post, appUser.uid, workerLabel, note);
       setInfo('¡Postulación enviada! El Negocio recibirá tu interés.');
       await loadApplications();
     } catch (e: unknown) {
@@ -104,11 +122,32 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
     }
   }
 
+  async function handleApply() {
+    if (!appUser) return;
+    const pending = await getPendingRatings(appUser.uid, 'worker');
+    if (pending.length > 0) {
+      setPendingApplyNote(applyNote);
+      setRatingQueue(pending);
+    } else {
+      await doApply(applyNote);
+    }
+  }
+
+  function handleRatingSubmitted() {
+    const next = ratingQueue.slice(1);
+    setRatingQueue(next);
+    if (next.length === 0 && pendingApplyNote !== null) {
+      void doApply(pendingApplyNote);
+      setPendingApplyNote(null);
+    }
+  }
+
   async function handleWithdraw() {
-    if (!myApplication) return;
+    if (!myApplication || !appUser) return;
     setActionLoading('withdraw');
     try {
-      await withdrawApplication(myApplication.id, withdrawReason);
+      const workerLabel = [appUser.first_name, appUser.last_name].filter(Boolean).join(' ') || undefined;
+      await withdrawApplication(myApplication, withdrawReason, post.title, workerLabel);
       setInfo('Retiraste tu postulación.');
       setShowWithdraw(false);
       await loadApplications();
@@ -161,8 +200,13 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div style={{ flex: 1 }}>
             <Badge color={statusColors[post.status] ?? 'gray'}>{JOB_POST_STATUS_LABEL[post.status]}</Badge>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1F1F1F', margin: '8px 0 4px' }}>{post.title}</h2>
-            <p style={{ fontSize: '14px', color: '#ad4b7e', fontWeight: 600, margin: 0 }}>{post.occupation}</p>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#111827', margin: '8px 0 4px' }}>{post.title}</h2>
+            <p style={{ fontSize: '14px', color: '#C0395B', fontWeight: 600, margin: 0 }}>{post.occupation}</p>
+            {!isOwner && (
+              <div style={{ marginTop: '6px' }}>
+                <StarDisplay uid={post.owner_uid} size="md" />
+              </div>
+            )}
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}>
             <X size={20} />
@@ -196,7 +240,7 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
             <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
               Descripción
             </h4>
-            <p style={{ fontSize: '14px', color: '#1F1F1F', lineHeight: 1.6 }}>{post.description}</p>
+            <p style={{ fontSize: '14px', color: '#111827', lineHeight: 1.6 }}>{post.description}</p>
           </div>
         )}
 
@@ -205,16 +249,25 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
             <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
               Requisitos
             </h4>
-            <p style={{ fontSize: '14px', color: '#1F1F1F', lineHeight: 1.6 }}>{post.requirements}</p>
+            <p style={{ fontSize: '14px', color: '#111827', lineHeight: 1.6 }}>{post.requirements}</p>
           </div>
         )}
 
         {!isOwner && post.status === 'published' && (
           <div style={{ borderTop: '1px solid #ECE7DD', paddingTop: '16px' }}>
             {!myApplication ? (
-              <Button fullWidth onClick={handleApply} loading={actionLoading === 'apply'} size="lg">
-                Postular a este turno
-              </Button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <Textarea
+                  label="¿Por qué deberías ser elegido?"
+                  placeholder="Cuéntale al negocio tu experiencia en el cargo, disponibilidad y motivación… (opcional)"
+                  value={applyNote}
+                  onChange={(e) => setApplyNote(e.target.value)}
+                  rows={3}
+                />
+                <Button fullWidth onClick={handleApply} loading={actionLoading === 'apply'} size="lg">
+                  Postular a este turno
+                </Button>
+              </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -223,6 +276,16 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
                   </Badge>
                   <span style={{ fontSize: '13px', color: '#6B7280' }}>Tu postulación</span>
                 </div>
+                {workerChatExists && myApplication && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setChatApp(myApplication as EnrichedApplication)}
+                  >
+                    <MessageCircle size={14} style={{ marginRight: '6px' }} />
+                    Chat con el negocio
+                  </Button>
+                )}
                 {myApplication.status === 'applied' && !showWithdraw && (
                   <Button variant="outline" size="sm" onClick={() => setShowWithdraw(true)}>
                     Retirar postulación
@@ -270,7 +333,7 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
             )}
 
             <div>
-              <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#1F1F1F', marginBottom: '12px' }}>
+              <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '12px' }}>
                 Postulantes ({applications.filter((a) => a.status === 'applied').length} activos)
               </h4>
               {loadingApps ? (
@@ -285,7 +348,10 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
                       application={app}
                       canAccept={post.status === 'published' && app.status === 'applied' && post.accepted_workers_count < post.required_workers}
                       onAccept={() => handleAcceptWorker(app)}
+                      onChat={() => setChatApp(app)}
                       loading={actionLoading === `accept_${app.id}`}
+                      defaultExpanded={highlightApplicationId === app.id}
+                      highlight={highlightApplicationId === app.id}
                     />
                   ))}
                 </div>
@@ -294,6 +360,29 @@ export function JobPostDetailModal({ post, isOwner, onClose, onUpdated }: Props)
           </div>
         )}
       </div>
+
+      {ratingQueue.length > 0 && appUser && (
+        <RatingModal
+          pending={ratingQueue[0]}
+          fromUid={appUser.uid}
+          fromRole={appUser.role}
+          onSubmitted={handleRatingSubmitted}
+        />
+      )}
+
+      {chatApp && (
+        <ChatModal
+          application={chatApp}
+          jobTitle={post.title}
+          otherName={
+            chatApp.worker?.user
+              ? `${chatApp.worker.user.first_name ?? ''} ${chatApp.worker.user.last_name ?? ''}`.trim() ||
+                chatApp.worker.user.email
+              : `Trabajador ${chatApp.worker_uid.slice(0, 6)}…`
+          }
+          onClose={() => setChatApp(null)}
+        />
+      )}
     </ModalOverlay>
   );
 }
@@ -302,13 +391,29 @@ function ApplicationRow({
   application,
   canAccept,
   onAccept,
+  onChat,
   loading,
+  defaultExpanded = false,
+  highlight = false,
 }: {
   application: EnrichedApplication;
   canAccept: boolean;
   onAccept: () => void;
+  onChat: () => void;
   loading: boolean;
+  defaultExpanded?: boolean;
+  highlight?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  // Si llegamos por deep link, hacer scroll al postulante destacado.
+  useEffect(() => {
+    if (highlight && rowRef.current) {
+      rowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlight]);
+
   const statusIcon: Record<string, React.ReactNode> = {
     accepted: <CheckCircle size={14} color="#22C55E" />,
     rejected: <XCircle size={14} color="#ef4444" />,
@@ -319,45 +424,179 @@ function ApplicationRow({
   };
 
   const u = application.worker?.user;
+  const w = application.worker;
   const displayName = u
     ? `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() || u.email
     : `Trabajador ${application.worker_uid.slice(0, 6)}…`;
   const initials = (u?.first_name?.[0] ?? u?.email?.[0] ?? 'T').toUpperCase();
-  const occupation = application.worker?.occupations?.[0];
+  const primaryOccupation = w?.occupations?.[0];
+  const otherOccupations = w?.occupations?.slice(1) ?? [];
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '12px 14px', borderRadius: '12px', background: '#F7F4EF', border: '1px solid #ECE7DD',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div style={{
-          width: '40px', height: '40px', borderRadius: '50%', background: '#ad4b7e',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '14px', fontWeight: 700, color: '#FFFFFF',
-        }}>
-          {initials}
-        </div>
-        <div>
-          <p style={{ fontSize: '14px', fontWeight: 600, color: '#1F1F1F', margin: 0 }}>{displayName}</p>
-          {occupation && (
-            <p style={{ fontSize: '12px', color: '#6B7280', margin: '2px 0 0' }}>
-              {occupation.name} · {occupation.years_experience} años
-            </p>
-          )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-            {statusIcon[application.status]}
-            <Badge color={appColors[application.status] ?? 'gray'}>
-              {APPLICATION_STATUS_LABEL[application.status]}
-            </Badge>
+    <div
+      ref={rowRef}
+      style={{
+        padding: '12px 14px',
+        borderRadius: '12px',
+        background: highlight ? '#FFF6FA' : '#F7F4EF',
+        border: highlight ? '1.5px solid #C0395B' : '1px solid #ECE7DD',
+        boxShadow: highlight ? '0 0 0 4px rgba(192, 57, 91, 0.08)' : 'none',
+        transition: 'background 0.15s, border-color 0.15s',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+          <div style={{
+            width: '40px', height: '40px', borderRadius: '50%', background: '#C0395B',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '14px', fontWeight: 700, color: '#FFFFFF', flexShrink: 0,
+          }}>
+            {initials}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>{displayName}</p>
+            {primaryOccupation && (
+              <p style={{ fontSize: '12px', color: '#6B7280', margin: '2px 0 0' }}>
+                {primaryOccupation.name} · {primaryOccupation.years_experience} años
+              </p>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+              {statusIcon[application.status]}
+              <Badge color={appColors[application.status] ?? 'gray'}>
+                {APPLICATION_STATUS_LABEL[application.status]}
+              </Badge>
+            </div>
           </div>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-label={expanded ? 'Ocultar resumen' : 'Ver resumen'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '6px 10px',
+              borderRadius: '8px',
+              border: '1px solid #E8E5E0',
+              background: '#FFFFFF',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#6B7280',
+              cursor: 'pointer',
+            }}
+          >
+            {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            {expanded ? 'Ocultar' : 'Ver perfil'}
+          </button>
+          <button
+            type="button"
+            onClick={onChat}
+            title="Iniciar chat"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '6px 10px',
+              borderRadius: '8px',
+              border: '1px solid #E8E5E0',
+              background: '#FFFFFF',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#C0395B',
+              cursor: 'pointer',
+            }}
+          >
+            <MessageCircle size={13} /> Chat
+          </button>
+          {canAccept && (
+            <Button size="sm" variant="primary" loading={loading} onClick={onAccept}>
+              <Check size={14} style={{ marginRight: '4px' }} /> Aceptar
+            </Button>
+          )}
+        </div>
       </div>
-      {canAccept && (
-        <Button size="sm" variant="primary" loading={loading} onClick={onAccept}>
-          <Check size={14} style={{ marginRight: '4px' }} /> Aceptar
-        </Button>
+
+      {expanded && (
+        <div
+          style={{
+            marginTop: '12px',
+            paddingTop: '12px',
+            borderTop: '1px dashed #E8E5E0',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '12px',
+          }}
+        >
+          <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontSize: '10.5px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Calificación
+            </span>
+            <StarDisplay uid={application.worker_uid} size="sm" />
+          </div>
+          {application.apply_note && (
+            <DetailField icon={<MessageSquare size={12} />} label="Nota del postulante">
+              {application.apply_note}
+            </DetailField>
+          )}
+          {w?.nationality && (
+            <DetailField icon={<Globe size={12} />} label="Nacionalidad">{w.nationality}</DetailField>
+          )}
+          {primaryOccupation && (
+            <DetailField icon={<Briefcase size={12} />} label="Oficio principal">
+              {primaryOccupation.name} ({primaryOccupation.years_experience} años)
+            </DetailField>
+          )}
+          {otherOccupations.length > 0 && (
+            <DetailField icon={<Briefcase size={12} />} label="Otros oficios">
+              {otherOccupations.map((o) => `${o.name} (${o.years_experience}a)`).join(', ')}
+            </DetailField>
+          )}
+          {application.withdraw_reason && (
+            <DetailField icon={<XCircle size={12} />} label="Motivo del desistimiento">
+              {application.withdraw_reason}
+            </DetailField>
+          )}
+          {!u && !w && (
+            <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>
+              No pudimos cargar más detalles del postulante.
+            </p>
+          )}
+        </div>
       )}
+    </div>
+  );
+}
+
+function DetailField({
+  icon,
+  label,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          color: '#9CA3AF',
+          fontSize: '10.5px',
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+        }}
+      >
+        {icon} {label}
+      </div>
+      <span style={{ fontSize: '13px', color: '#111827', fontWeight: 500, wordBreak: 'break-word' }}>
+        {children}
+      </span>
     </div>
   );
 }
@@ -368,7 +607,7 @@ function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: str
       <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#9CA3AF', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
         {icon} {label}
       </div>
-      <span style={{ fontSize: '14px', color: '#1F1F1F', fontWeight: 500 }}>{children}</span>
+      <span style={{ fontSize: '14px', color: '#111827', fontWeight: 500 }}>{children}</span>
     </div>
   );
 }

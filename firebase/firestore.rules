@@ -34,8 +34,12 @@ service cloud.firestore {
     // ───────────────────────────────────────────────
     // users/{uid}
     // ───────────────────────────────────────────────
+    // MVP: lectura para cualquier autenticado para que el owner pueda ver el
+    // perfil del postulante (nombre, email, RUT) y el worker pueda ver datos
+    // públicos del owner si fuera necesario. Trade-off documentado en
+    // docs/SECURITY_RULES.md — escritura sigue restringida al dueño.
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      allow read: if isAuthenticated();
       allow create: if isOwner(userId);
       allow update: if isOwner(userId);
       allow delete: if false;
@@ -54,8 +58,12 @@ service cloud.firestore {
     // ───────────────────────────────────────────────
     // workers/{uid}
     // ───────────────────────────────────────────────
+    // MVP: lectura para cualquier autenticado para que el owner pueda ver
+    // oficios, años de experiencia y nacionalidad del postulante en el
+    // resumen del modal. Documentos sensibles (foto carnet, certificados)
+    // siguen en Storage con sus propias reglas.
     match /workers/{workerId} {
-      allow read: if isOwner(workerId);
+      allow read: if isAuthenticated();
       allow create: if isOwner(workerId);
       allow update: if isOwner(workerId);
       allow delete: if false;
@@ -121,9 +129,10 @@ service cloud.firestore {
     // ratings/{ratingId}
     // ───────────────────────────────────────────────
     match /ratings/{ratingId} {
-      allow read: if isAuthenticated()
-                  && (resource.data.from_uid == uid()
-                      || resource.data.to_uid == uid());
+      // MVP: lectura para cualquier autenticado para calcular promedios en cliente
+      // (owner ve promedio del trabajador, worker ve promedio del negocio).
+      // Trade-off documentado en docs/RATINGS.md — ajustar con backend en v2.
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated()
                     && request.resource.data.from_uid == uid()
                     && request.resource.data.from_uid != request.resource.data.to_uid;
@@ -134,14 +143,62 @@ service cloud.firestore {
     // ───────────────────────────────────────────────
     // notifications/{notificationId}
     // ───────────────────────────────────────────────
+    // Modelo: las notificaciones pueden ser directas (recipient_uid != '')
+    // o broadcast por rol (recipient_role != ''). Las broadcast usan read_by[]
+    // para que cada usuario marque como leída individualmente.
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && resource.data.recipient_uid == uid();
-      // Solo backend puede crear notificaciones; usuario solo puede marcar como leída
-      allow create: if false;
+      allow read: if isAuthenticated()
+                  && (resource.data.recipient_uid == uid()
+                      || (resource.data.recipient_role != ''
+                          && resource.data.recipient_role == getUserRole()));
+      // Cualquier usuario autenticado puede crear notificaciones para otros
+      // (un worker notifica al owner al postular/desistir; un owner notifica
+      // a los workers al publicar). El recipient_uid no puede ser uno mismo.
+      allow create: if isAuthenticated()
+                    && request.resource.data.recipient_uid is string
+                    && request.resource.data.recipient_role is string
+                    && request.resource.data.recipient_uid != uid();
+      // Marcar como leída: 'read' para directas, 'read_by' para broadcast.
       allow update: if isAuthenticated()
-                    && resource.data.recipient_uid == uid()
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+                    && (resource.data.recipient_uid == uid()
+                        || (resource.data.recipient_role != ''
+                            && resource.data.recipient_role == getUserRole()))
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'read_by']);
       allow delete: if false;
+    }
+
+    // ───────────────────────────────────────────────
+    // chats/{chatId}  +  chats/{chatId}/messages/{msgId}
+    // ───────────────────────────────────────────────
+    // Solo los dos participantes (owner + worker) pueden leer y escribir.
+    // Usamos campos escalares owner_uid / worker_uid (en vez de participants[])
+    // para que las queries con where() sean compatibles con las reglas.
+    match /chats/{chatId} {
+      allow read: if isAuthenticated()
+                  && (resource.data.owner_uid == uid()
+                      || resource.data.worker_uid == uid());
+      allow create: if isAuthenticated()
+                    && (request.resource.data.owner_uid == uid()
+                        || request.resource.data.worker_uid == uid());
+      allow update: if isAuthenticated()
+                    && (resource.data.owner_uid == uid()
+                        || resource.data.worker_uid == uid())
+                    && request.resource.data.diff(resource.data)
+                         .affectedKeys().hasOnly(['last_message', 'last_message_at', 'updated_at']);
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isAuthenticated()
+                    && (get(/databases/$(database)/documents/chats/$(chatId)).data.owner_uid == uid()
+                        || get(/databases/$(database)/documents/chats/$(chatId)).data.worker_uid == uid());
+        allow create: if isAuthenticated()
+                      && (get(/databases/$(database)/documents/chats/$(chatId)).data.owner_uid == uid()
+                          || get(/databases/$(database)/documents/chats/$(chatId)).data.worker_uid == uid())
+                      && request.resource.data.sender_uid == uid()
+                      && request.resource.data.content is string
+                      && request.resource.data.content.size() > 0;
+        allow update, delete: if false;
+      }
     }
 
     // ───────────────────────────────────────────────

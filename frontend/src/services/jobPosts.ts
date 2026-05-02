@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { JobPost, Application } from '../types';
+import { createNotification } from './notifications';
 
 export interface JobPostFilters {
   region?: string;
@@ -64,6 +65,22 @@ export async function createJobPost(data: Omit<JobPost, 'id' | 'created_at' | 'u
     created_at: serverTimestamp(),
     updated_at: serverTimestamp(),
   });
+
+  // Broadcast a los workers para que aparezca en la campanita.
+  try {
+    const locationLabel = [data.commune, data.region].filter(Boolean).join(', ') || 'tu zona';
+    await createNotification({
+      recipient_role: 'worker',
+      type: 'new_job_post',
+      title: 'Nuevo turno disponible',
+      message: `Se publicó "${data.title}" (${data.occupation}) en ${locationLabel}.`,
+      related_job_post_id: ref.id,
+    });
+  } catch (e) {
+    // No bloquear la creación si la notificación falla.
+    console.warn('No se pudo crear la notificación broadcast:', e);
+  }
+
   return ref.id;
 }
 
@@ -90,27 +107,68 @@ export async function getJobPostApplications(jobPostId: string): Promise<Applica
   });
 }
 
-export async function applyToJobPost(jobPostId: string, ownerUid: string, workerUid: string): Promise<string> {
+export async function applyToJobPost(
+  post: Pick<JobPost, 'id' | 'owner_uid' | 'title' | 'occupation'>,
+  workerUid: string,
+  workerLabel?: string,
+  applyNote?: string
+): Promise<string> {
   const ref = await addDoc(collection(db, 'applications'), {
-    job_post_id: jobPostId,
-    owner_uid: ownerUid,
+    job_post_id: post.id,
+    owner_uid: post.owner_uid,
     worker_uid: workerUid,
     status: 'applied',
+    apply_note: applyNote?.trim() || null,
     withdraw_reason: null,
     rejection_reason: null,
     auto_rejection_message_sent: false,
     created_at: serverTimestamp(),
     updated_at: serverTimestamp(),
   });
+
+  try {
+    const who = workerLabel ? `${workerLabel} se postuló` : 'Recibiste una nueva postulación';
+    await createNotification({
+      recipient_uid: post.owner_uid,
+      type: 'new_application',
+      title: 'Nueva postulación',
+      message: `${who} para "${post.title}" (${post.occupation}).`,
+      related_job_post_id: post.id,
+      related_application_id: ref.id,
+    });
+  } catch (e) {
+    console.warn('No se pudo crear la notificación al owner:', e);
+  }
+
   return ref.id;
 }
 
-export async function withdrawApplication(applicationId: string, reason: string): Promise<void> {
-  await updateDoc(doc(db, 'applications', applicationId), {
+export async function withdrawApplication(
+  application: Pick<Application, 'id' | 'owner_uid' | 'job_post_id'>,
+  reason: string,
+  jobTitle?: string,
+  workerLabel?: string
+): Promise<void> {
+  await updateDoc(doc(db, 'applications', application.id), {
     status: 'withdrawn',
     withdraw_reason: reason,
     updated_at: serverTimestamp(),
   });
+
+  try {
+    const who = workerLabel ?? 'Un postulante';
+    const what = jobTitle ? `"${jobTitle}"` : 'tu publicación';
+    await createNotification({
+      recipient_uid: application.owner_uid,
+      type: 'application_withdrawn',
+      title: 'Un postulante desistió',
+      message: `${who} desistió de ${what}${reason ? `. Motivo: ${reason}` : '.'}`,
+      related_job_post_id: application.job_post_id,
+      related_application_id: application.id,
+    });
+  } catch (e) {
+    console.warn('No se pudo crear la notificación al owner:', e);
+  }
 }
 
 export async function getWorkerApplications(workerUid: string): Promise<Application[]> {

@@ -43,7 +43,7 @@ export function ForgotPasswordPage() {
               <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '8px' }}>
                 Revisa tu bandeja de entrada y sigue las instrucciones para restablecer tu contraseña.
               </p>
-              <Link to="/login" style={{ display: 'block', marginTop: '16px', color: '#ad4b7e', fontWeight: 600, fontSize: '14px' }}>
+              <Link to="/login" style={{ display: 'block', marginTop: '16px', color: '#C0395B', fontWeight: 600, fontSize: '14px' }}>
                 Volver al inicio de sesión
               </Link>
             </div>
@@ -68,7 +68,7 @@ export function ForgotPasswordPage() {
               </form>
 
               <p style={{ textAlign: 'center', fontSize: '14px', color: '#6b7280' }}>
-                <Link to="/login" style={{ color: '#ad4b7e' }}>Volver al inicio de sesión</Link>
+                <Link to="/login" style={{ color: '#C0395B' }}>Volver al inicio de sesión</Link>
               </p>
             </>
           )}

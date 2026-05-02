@@ -16,20 +16,51 @@ interface VariantStyle {
   color: string;
   border: string;
   hoverBg: string;
+  hoverBorder: string;
 }
 
 const variantMap: Record<Variant, VariantStyle> = {
-  primary: { bg: '#1F1F1F', color: '#FFFFFF', border: '#1F1F1F', hoverBg: '#000000' },
-  secondary: { bg: '#FFFFFF', color: '#1F1F1F', border: '#ECE7DD', hoverBg: '#F7F4EF' },
-  outline: { bg: 'transparent', color: '#1F1F1F', border: '#1F1F1F', hoverBg: '#F7F4EF' },
-  ghost: { bg: 'transparent', color: '#ad4b7e', border: 'transparent', hoverBg: '#FCE7F3' },
-  danger: { bg: '#ef4444', color: '#FFFFFF', border: '#ef4444', hoverBg: '#dc2626' },
+  primary: {
+    bg: '#C0395B',
+    color: '#FFFFFF',
+    border: 'transparent',
+    hoverBg: '#A52F4E',
+    hoverBorder: 'transparent',
+  },
+  secondary: {
+    bg: '#FFFFFF',
+    color: '#111827',
+    border: '#E8E5E0',
+    hoverBg: '#F8F7F5',
+    hoverBorder: '#D1CEC9',
+  },
+  outline: {
+    bg: 'transparent',
+    color: '#C0395B',
+    border: '#C0395B',
+    hoverBg: '#FEF0F4',
+    hoverBorder: '#C0395B',
+  },
+  ghost: {
+    bg: 'transparent',
+    color: '#C0395B',
+    border: 'transparent',
+    hoverBg: '#FEF0F4',
+    hoverBorder: 'transparent',
+  },
+  danger: {
+    bg: '#DC2626',
+    color: '#FFFFFF',
+    border: 'transparent',
+    hoverBg: '#B91C1C',
+    hoverBorder: 'transparent',
+  },
 };
 
-const sizeMap: Record<Size, { padding: string; fontSize: string; radius: string }> = {
-  sm: { padding: '7px 14px', fontSize: '13px', radius: '8px' },
-  md: { padding: '10px 18px', fontSize: '14px', radius: '10px' },
-  lg: { padding: '12px 22px', fontSize: '15px', radius: '12px' },
+const sizeMap: Record<Size, { padding: string; fontSize: string; radius: string; gap: string }> = {
+  sm:  { padding: '7px 14px',  fontSize: '13px', radius: '10px',  gap: '5px' },
+  md:  { padding: '10px 20px', fontSize: '14px', radius: '12px',  gap: '6px' },
+  lg:  { padding: '13px 28px', fontSize: '15px', radius: '999px', gap: '7px' },
 };
 
 export function Button({
@@ -51,19 +82,23 @@ export function Button({
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: s.gap,
     fontWeight: 600,
-    transition: 'all 0.15s',
+    letterSpacing: '-0.01em',
+    transition: 'background 0.15s, border-color 0.15s, box-shadow 0.15s, opacity 0.15s',
     background: hover && !isDisabled ? v.hoverBg : v.bg,
     color: v.color,
-    border: `1.5px solid ${v.border}`,
+    border: `1.5px solid ${hover && !isDisabled ? v.hoverBorder : v.border}`,
     padding: s.padding,
     fontSize: s.fontSize,
     borderRadius: s.radius,
     cursor: isDisabled ? 'not-allowed' : 'pointer',
-    opacity: isDisabled ? 0.55 : 1,
+    opacity: isDisabled ? 0.5 : 1,
     width: fullWidth ? '100%' : undefined,
-    gap: '6px',
     fontFamily: 'inherit',
+    boxShadow: variant === 'primary' && !isDisabled && hover
+      ? '0 4px 12px rgba(192, 57, 91, 0.3)'
+      : 'none',
     ...style,
   };
 
@@ -82,11 +117,10 @@ export function Button({
           height="14"
           viewBox="0 0 24 24"
           fill="none"
-          xmlns="http://www.w3.org/2000/svg"
           style={{ flexShrink: 0 }}
         >
-          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" opacity="0.25" />
-          <path d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" fill="currentColor" opacity="0.85" />
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+          <path d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" fill="currentColor" />
         </svg>
       )}
       {children}

@@ -1,19 +1,17 @@
 import type { ReactNode } from 'react';
 import { Navbar } from './Navbar';
 
-const PAGE_BG = '#F7F4EF';
-
 export function Layout({ children }: { children: ReactNode }) {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: PAGE_BG }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#F8F7F5' }}>
       <Navbar />
       <main
         style={{
           flex: 1,
           width: '100%',
-          maxWidth: '1180px',
+          maxWidth: '1160px',
           margin: '0 auto',
-          padding: '28px 20px 64px',
+          padding: '28px 24px 80px',
         }}
       >
         {children}
@@ -31,23 +29,24 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: PAGE_BG,
-        padding: '32px 16px',
+        background: '#F8F7F5',
+        padding: '32px 20px',
       }}
     >
-      <div style={{ marginBottom: '28px', textAlign: 'center' }}>
+      <div style={{ marginBottom: '24px', textAlign: 'center' }}>
         <h1
           style={{
-            fontSize: '40px',
+            fontSize: '32px',
             fontWeight: 800,
-            color: '#ad4b7e',
-            letterSpacing: '-1px',
+            color: '#C0395B',
+            letterSpacing: '-1.5px',
             margin: 0,
+            lineHeight: 1,
           }}
         >
           Parche
         </h1>
-        <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '6px' }}>
+        <p style={{ fontSize: '14px', color: '#9CA3AF', marginTop: '8px', fontWeight: 400 }}>
           Conectamos locales con personas que quieren trabajar
         </p>
       </div>
