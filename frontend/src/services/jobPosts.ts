@@ -110,13 +110,15 @@ export async function getJobPostApplications(jobPostId: string): Promise<Applica
 export async function applyToJobPost(
   post: Pick<JobPost, 'id' | 'owner_uid' | 'title' | 'occupation'>,
   workerUid: string,
-  workerLabel?: string
+  workerLabel?: string,
+  applyNote?: string
 ): Promise<string> {
   const ref = await addDoc(collection(db, 'applications'), {
     job_post_id: post.id,
     owner_uid: post.owner_uid,
     worker_uid: workerUid,
     status: 'applied',
+    apply_note: applyNote?.trim() || null,
     withdraw_reason: null,
     rejection_reason: null,
     auto_rejection_message_sent: false,

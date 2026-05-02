@@ -17,7 +17,7 @@ import type { JobPost, Application, User as AppUser, Worker } from '../../types'
 import { APPLICATION_STATUS_LABEL, JOB_POST_STATUS_LABEL } from '../../types';
 import {
   MapPin, Calendar, Clock, Users, DollarSign, Briefcase,
-  CheckCircle, XCircle, Check, X, ChevronDown, ChevronUp, Mail, Globe, IdCard,
+  CheckCircle, XCircle, Check, X, ChevronDown, ChevronUp, Globe, MessageSquare,
 } from 'lucide-react';
 
 type EnrichedApplication = Application & { worker?: Worker & { user?: AppUser } };
@@ -37,6 +37,7 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
   const [applications, setApplications] = useState<EnrichedApplication[]>([]);
   const [loadingApps, setLoadingApps] = useState(false);
   const [myApplication, setMyApplication] = useState<Application | null>(null);
+  const [applyNote, setApplyNote] = useState('');
   const [withdrawReason, setWithdrawReason] = useState('');
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showClose, setShowClose] = useState(false);
@@ -98,7 +99,7 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
     setError('');
     try {
       const workerLabel = [appUser.first_name, appUser.last_name].filter(Boolean).join(' ') || undefined;
-      await applyToJobPost(post, appUser.uid, workerLabel);
+      await applyToJobPost(post, appUser.uid, workerLabel, applyNote);
       setInfo('¡Postulación enviada! El Negocio recibirá tu interés.');
       await loadApplications();
     } catch (e: unknown) {
@@ -217,9 +218,18 @@ export function JobPostDetailModal({ post, isOwner, highlightApplicationId, onCl
         {!isOwner && post.status === 'published' && (
           <div style={{ borderTop: '1px solid #ECE7DD', paddingTop: '16px' }}>
             {!myApplication ? (
-              <Button fullWidth onClick={handleApply} loading={actionLoading === 'apply'} size="lg">
-                Postular a este turno
-              </Button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <Textarea
+                  label="¿Por qué deberías ser elegido?"
+                  placeholder="Cuéntale al negocio tu experiencia en el cargo, disponibilidad y motivación… (opcional)"
+                  value={applyNote}
+                  onChange={(e) => setApplyNote(e.target.value)}
+                  rows={3}
+                />
+                <Button fullWidth onClick={handleApply} loading={actionLoading === 'apply'} size="lg">
+                  Postular a este turno
+                </Button>
+              </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -425,11 +435,10 @@ function ApplicationRow({
             gap: '12px',
           }}
         >
-          {u?.email && (
-            <DetailField icon={<Mail size={12} />} label="Email">{u.email}</DetailField>
-          )}
-          {u?.rut && (
-            <DetailField icon={<IdCard size={12} />} label="RUT">{u.rut}</DetailField>
+          {application.apply_note && (
+            <DetailField icon={<MessageSquare size={12} />} label="Nota del postulante">
+              {application.apply_note}
+            </DetailField>
           )}
           {w?.nationality && (
             <DetailField icon={<Globe size={12} />} label="Nacionalidad">{w.nationality}</DetailField>
